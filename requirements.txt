@@ -1,0 +1,4 @@
+google-api-python-client==2.166.0    # Allows access to the official YouTube API
+pandas==2.2.3                        # Used to structure extracted data
+tqdm==4.67.1                         # Provides feedback on the data collection progress
+langdetect==1.0.9                    # Supports language detection for comments
