@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the version you used."
+title: "socialcollect: reproducible, quota-aware collection of YouTube comments for research"
+type: software
+authors:
+  - family-names: Miller
+    given-names: Loïc
+version: 2.0.0
+date-released: 2026-10-20
+repository-code: "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector"
+keywords:
+  - YouTube Data API
+  - comments
+  - data collection
+  - social media research
+references:
+  - type: software
+    title: "YouTube Data Collector (version 1)"
+    authors:
+      - family-names: Campos-Moinier
+        given-names: Kévin
+    version: 1.0.0
+    date-released: 2026-05-21
+    repository-code: "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0"

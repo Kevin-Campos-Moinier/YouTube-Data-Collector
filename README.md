@@ -1,0 +1,295 @@
+# socialcollect
+
+[![tests](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/actions/workflows/tests.yml/badge.svg)](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/actions/workflows/tests.yml)
+
+Collect social media comments for research through the platforms' official APIs. Collections
+are reproducible, stay within the quota, can be resumed, and pseudonymize commenters by default.
+YouTube is supported today. The code is organised so other platforms (Reddit…) can be added as
+new *sources* without touching the rest.
+
+Version 2 is a complete rewrite of the YouTube Data Collector (version 1). What changed and
+why is in [docs/changes-from-v1.md](docs/changes-from-v1.md) and [CHANGELOG.md](CHANGELOG.md);
+see also [History](#history).
+
+- **Nothing is lost:** every page is saved as it arrives. A run that hits the daily quota pauses,
+  and `resume` continues the next day (or `--wait` does it automatically).
+- **Quota-efficient:** replies come with the comments whenever possible, videos are checked
+  before collection, and the cost is estimated before you start.
+- **Reproducible:** a run is a TOML file frozen into the database, and exports ship a manifest,
+  an exclusion report and a codebook.
+- **Non-destructive processing:** the raw text is kept, and cleaned text, detected language and
+  exclusion reason are added as columns. Processing can be redone at no quota cost.
+- **Pseudonymous by default:** commenters become keyed hashes and `@handles` are masked.
+- **Snapshots:** re-collect the same videos later to follow likes over time and detect comments
+  that were deleted or hidden.
+- **Dashboard:** a local web page to plan, launch, watch, explore and export runs.
+
+## Install and launch
+
+You need three things: Python 3.11 or newer, this folder, and a YouTube API key. After that,
+starting the dashboard is a double-click. The first launch installs everything by itself.
+
+**Get this folder.** Download the `.zip` of the latest version from the
+[Releases page](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/releases) and unzip it anywhere, or `git clone https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector.git`.
+
+### 1. Install Python (once per computer)
+
+**Windows.** Download the installer from <https://www.python.org/downloads/>. On its first
+screen, tick **"Add python.exe to PATH"**, then *Install Now*.
+
+**macOS.** Download the macOS installer from <https://www.python.org/downloads/> and run it.
+The `python3` that comes with Apple's developer tools is too old (3.9). With Homebrew,
+`brew install python@3.12` works too.
+
+**Linux.** Recent distributions ship a recent enough Python (Ubuntu 24.04: 3.12). Check with
+`python3 --version`. On Debian/Ubuntu, also install the environment module:
+`sudo apt install python3-venv`.
+
+### 2. Get a YouTube API key (once per person)
+
+1. Open <https://console.cloud.google.com/> (a dedicated Google account is a good idea) and create
+   a project.
+2. *APIs & Services* → *Enable APIs and services* → search **YouTube Data API v3** → *Enable*.
+3. *Credentials* → *Create credentials* → *API key*. If asked what data you will access, choose
+   **Public data**.
+4. On the key, click *Edit* → *API restrictions* → *Restrict key* → tick only **YouTube Data API v3**
+   → *Save*. Leave *Application restrictions* on *None*.
+
+Keep the key to yourself: each person uses their own.
+
+### 3. Launch the dashboard
+
+| System | What to do |
+|---|---|
+| Windows | double-click **`dashboard.bat`** |
+| macOS | double-click **`dashboard.command`** (the first time: right-click → *Open*, then confirm, since macOS blocks unsigned scripts) |
+| Linux | run **`./dashboard.sh`** in a terminal from this folder |
+
+The first launch creates a Python environment and installs the dependencies (a few minutes).
+It then creates a file named `.env` in this folder and opens it: paste your key after
+`YOUTUBE_API_KEY=`, save, and launch again. From then on, the launcher opens the dashboard in
+your browser at <http://127.0.0.1:8777>. Keep the terminal window open while you use it; closing
+it (or Ctrl-C) stops the dashboard and pauses any running collection, which *Resume* continues
+later.
+
+`.env` is never committed to git. It is still a file in this folder, though, so don't send the
+folder around with your `.env` inside.
+
+**Where things go.** Both locations are outside the code folder on purpose. An environment
+breaks when its folder is synced or moved. A database that two computers write to through a
+synced folder (OneDrive, Dropbox, iCloud) gets corrupted. Each computer therefore keeps its own:
+
+| What | Default | Change it with |
+|---|---|---|
+| Python environment | `~/.venvs/socialcollect` (Windows: `C:\Users\<you>\.venvs\socialcollect`) | `SOCIALCOLLECT_VENV` |
+| Runs, database, exports | `~/socialcollect-data` (Windows: `C:\Users\<you>\socialcollect-data`) | `SOCIALCOLLECT_DATA`, or `--data` |
+
+Each data folder holds its own pseudonymization secret (`.secret`), so the same commenter gets
+different author keys on different computers. To get identical keys everywhere, put the same
+`SOCIALCOLLECT_SECRET=<long random string>` in `.env` on every computer **before** the first
+collection.
+
+**If something goes wrong.**
+- "permission denied" on macOS/Linux: `chmod +x dashboard.command dashboard.sh`.
+- "Python 3.11 or newer is required": install Python as in step 1. On Windows, reinstall with
+  *Add python.exe to PATH* ticked.
+- To reinstall from scratch, delete the environment folder above and launch again.
+
+### Manual install (for command-line use)
+
+The launcher is a convenience. By hand, from this folder:
+
+```bash
+# macOS / Linux
+python3 -m venv ~/.venvs/socialcollect
+~/.venvs/socialcollect/bin/pip install -e ".[all]"
+~/.venvs/socialcollect/bin/socialcollect dashboard
+```
+
+```powershell
+# Windows (PowerShell)
+py -m venv $HOME\.venvs\socialcollect
+& $HOME\.venvs\socialcollect\Scripts\pip.exe install -e ".[all]"
+& $HOME\.venvs\socialcollect\Scripts\socialcollect.exe dashboard
+```
+
+`[all]` adds language detection and Parquet export. Activate the environment
+(`source ~/.venvs/socialcollect/bin/activate`, or `$HOME\.venvs\socialcollect\Scripts\Activate.ps1`)
+to type plain `socialcollect …` afterwards.
+
+## Use it: the dashboard
+
+Start it with the launcher (above) or `socialcollect dashboard`. It only listens on your own
+computer (127.0.0.1).
+
+1. **New run**: paste video URLs (or `channel:@name`, `playlist:…`), choose the order, the number
+   of comments and replies, and the languages to keep.
+2. **Check videos & estimate cost**: shows each video's title and comment count, flags disabled
+   or missing ones, and estimates the quota cost against what is left today.
+3. **Start collection**: shows per-video progress, the quota gauge, the filtering report and the log.
+   *Pause* and *Resume* work at any time. Tick *continue after quota reset* for runs larger than
+   one day's quota, and leave the dashboard running.
+4. **Coverage** on the run page: how many of the video's comments on YouTube were collected,
+   and where the others went (outside your sample, over your reply cap, reported by YouTube but
+   never returned by its API, or filtered out by language). Collect a video with "0 = all"
+   comments to measure what the API itself withholds.
+5. **Explore**: comments per day for each video, languages, most liked comments, and a searchable
+   table.
+6. **Refresh snapshot** (later): collects the same videos again and lists what changed (likes,
+   comments no longer public).
+7. **Export**: CSV (tick *Excel* for French Excel), JSONL or Parquet, written to `exports/` in the data folder.
+
+The **Quota** page (or a click on the header gauge) shows today's units left, what they were
+spent on (by type of call and by run), and the last 14 days.
+
+The dashboard writes each run's settings to `runs/<name>.toml` in the data folder, so a dashboard run can be
+repeated from the command line.
+
+## Use it: the command line
+
+```bash
+cp config.example.toml my-run.toml       # edit it: every option is commented
+socialcollect estimate my-run.toml       # check videos and cost (≈1 unit per 50 videos)
+socialcollect run my-run.toml            # collect; add --wait to span several days
+socialcollect status [NAME]              # runs, per-video progress, filtering report, coverage
+socialcollect resume NAME [--wait]       # continue a paused or incomplete run
+socialcollect refresh NAME [--wait]      # new snapshot of the same videos
+socialcollect process NAME --config other.toml   # redo text processing with other [process] settings
+socialcollect export NAME [--format csv|jsonl|parquet] [--kept] [--excel] [--snapshot N]
+```
+
+Everything lives in the data folder (`~/socialcollect-data` unless `SOCIALCOLLECT_DATA` or
+`--data DIR` says otherwise): the database `socialcollect.sqlite`, the pseudonymization secret
+`.secret`, run files and exports.
+
+## Concepts
+
+| Term | Meaning |
+|---|---|
+| **run** | One study's collection settings (name, targets, parameters), frozen at creation |
+| **snapshot** | One execution of a run: the first collection, then one per `refresh` |
+| **container** | What comments hang under: a YouTube video (a Reddit post, later) |
+| **item** | One comment (`depth` 0) or reply (`depth` 1), with `thread_id` and `parent_id` |
+| **sample** | The comments the settings asked for: the first N threads in the chosen order and up to M replies each. Language filtering does **not** change the sample: it labels comments inside it |
+| **excluded_reason** | Why a comment would be dropped by `--kept`: `empty_after_cleaning`, `other_language`, `undetected` |
+| **author_key** | Pseudonymous, stable ID of a commenter (HMAC-SHA256 of the channel ID with the project secret) |
+
+## Quota
+
+A standard key has 10,000 units per day, reset at midnight Pacific time (09:00 in Paris). Costs:
+
+| Call | Units | Used for |
+|---|---|---|
+| `videos.list` | 1 per 50 videos | titles, counts, availability check |
+| `commentThreads.list` | 1 per 100 comments | comments, plus up to 5 replies each for free |
+| `comments.list` | 1 per 100 replies | only for threads with more than 5 replies, up to your cap |
+| `channels.list`, `playlistItems.list` | 1, then 1 per 50 videos | `channel:` and `playlist:` targets |
+| `search.list` | **100** per 50 results | `search:` targets (off by default) |
+
+"Oldest first" has to read every page of a video, so it costs as much as collecting all its comments.
+
+The tool counts its own calls. If the same key is used elsewhere, YouTube's "quota exceeded"
+error is the final word and the run simply pauses. For more quota, apply to the
+[YouTube Researcher Program](https://research.youtube/). Do **not** create extra projects or keys
+to get around the limit: the YouTube API Terms forbid it.
+
+## Outputs
+
+`socialcollect export NAME` writes `exports/NAME/` in the data folder (or `NAME-s2/` for snapshot 2):
+
+| File | Contents |
+|---|---|
+| `items.csv` | one row per comment/reply in the sample (see `codebook.md`) |
+| `containers.csv` | one row per video: metadata at collection time, status, counts |
+| `gone.csv` | (snapshots ≥ 2) comments sampled before and no longer public |
+| `exclusion_report.json` | collected / kept / excluded by reason, for comments and replies; `coverage`: platform count vs collected, per cause and per video |
+| `run_manifest.json` | exact settings, tool version, times, quota spent, per-video status |
+| `codebook.md` | the meaning of every column |
+
+## Ethics and legal notes
+
+- **Pseudonymization is not anonymization.** Comment text can identify people (quotes are
+  searchable). Store data on institutional storage, and quote paraphrased text in publications.
+- **The secret** (`.secret` in the data folder, or `SOCIALCOLLECT_SECRET`) links author keys back to accounts
+  for whoever also has the raw API data. Share it only with people allowed to re-identify.
+  Losing it changes every author key in future runs.
+- **30-day rule:** the YouTube API Services Developer Policies ask that stored API data be
+  refreshed or deleted after 30 days. The dashboard shows the date for each run, and `refresh`
+  renews a run.
+- **The database is personal data.** Exports are pseudonymized, but the database keeps each
+  comment's text exactly as returned (with `@handles`) so that it can be reprocessed. Share
+  exports, not `socialcollect.sqlite`. Raw API responses are stored without commenter
+  identifiers unless `keep_identifiers = true`. On a shared computer, the data folder is
+  created readable by you only; a folder from an older version can be closed with
+  `chmod 700 ~/socialcollect-data`.
+- **Opening exports in Excel:** use `--excel` (or tick *Excel*). Besides the French-Excel
+  format, it neutralizes comments that start with `=`, `+`, `-` or `@`, which Excel would
+  otherwise run as formulas (a comment can be written to do that). The plain CSV keeps the
+  text exactly, for R, Python or SPSS.
+- **Official API only:** this tool never scrapes web pages.
+- **Security:** see [SECURITY.md](SECURITY.md) for what the tool protects and how to report a
+  vulnerability privately.
+
+## Code layout
+
+How a collection flows: the run file's **targets** go to a **source** (`sources/youtube.py`),
+which yields pages of comments; the **pipeline** stores each page with its checkpoint in the
+**store** (SQLite) and runs **text** processing on it; **export** and the **dashboard** read the
+store.
+
+```
+dashboard.bat / dashboard.command / dashboard.sh   double-click launchers (call launch.py)
+launch.py       first-run install into ~/.venvs/socialcollect, .env setup, starts the dashboard
+src/socialcollect/
+  cli.py          command line
+  config.py       the run file: dataclasses, validation, TOML
+  model.py        Container, Item, Page, Estimate — platform-neutral records
+  sources/
+    base.py       the Source protocol every platform implements
+    youtube.py    YouTube Data API v3 (the only YouTube-specific code)
+  pipeline.py     runs a snapshot: phases, checkpoints, pause/resume, refresh checks
+  store.py        SQLite schema and queries
+  budget.py       daily quota ledger and reset time
+  net.py          HTTP GET with retries
+  text.py         normalization, cleaning, language detection, exclusion reasons
+  privacy.py      pseudonymization and @mention masking
+  export.py       CSV/JSONL/Parquet, report, manifest, codebook
+  dashboard/      local web UI (stdlib server + one HTML page)
+```
+
+**Adding a platform** (e.g. Reddit): write `sources/reddit.py` with a class implementing the
+methods of `sources/base.py` (`expand`, `resolve`, `estimate`, `threads`, `replies`, and
+`exists` for refresh checks). It returns `Container`/`Item`/`Page` records and raises
+`BudgetExhausted` / `Unavailable`. Then register it in `sources/__init__.py`. The pipeline,
+storage, processing, exports and dashboard need no change. Reddit's `morechildren` expansion
+maps onto `replies`, and its rate limit (requests per minute rather than units per day) onto a
+second `Budget` profile.
+
+## Development
+
+```bash
+pip install -e ".[all,dev]"
+pytest                      # offline: an in-memory fake of the YouTube API, no key needed
+```
+
+## Roadmap
+
+- Reddit source.
+- Bot and spam heuristics (identical text across videos, burst posting).
+- A "data statement" generated from the manifest, for ethics committees and papers.
+- Map `@handle` mentions in replies to the pseudonymous key of the author replied to, so
+  reply-to networks survive pseudonymization.
+
+## History
+
+- **Version 1** (2026), the YouTube Data Collector, was written by Kévin Campos-Moinier. It
+  stays available unchanged as the
+  [`v1.0.0` tag](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0).
+- **Version 2** (`socialcollect`) is a complete rewrite by Loïc Miller. It keeps version 1's
+  design choices (official API, quota handling, exclusion report) and its short-English word
+  list, and adds everything listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Citing
+
+GitHub's *Cite this repository* button (from [CITATION.cff](CITATION.cff)) gives a ready-made
+reference. Cite the version you used: each release has its own tag.

@@ -1,0 +1,4 @@
+# Launchers must keep their line endings whatever the cloning system does.
+*.bat text eol=crlf
+*.sh text eol=lf
+*.command text eol=lf

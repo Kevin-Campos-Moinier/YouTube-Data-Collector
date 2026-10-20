@@ -1,8 +1,0 @@
-# This file centralizes the videos IDs to be processed. 
-# During initialization, the program reads this file and considers all valid IDs for data collection. 
-# Video IDs can be found in YouTube URLs after the "?v=" parameter. 
-
-VLGy63pt9vA # Intergalactic: The Heretic Prophet - Announcement Trailer | PS5 Games 
-W2Wnvvj33Wo # The Last of Us Part II - PlayStation Experience 2016: Reveal Trailer | PS4
-UqCD5AX-hC4 # The Last of US Part II - Official Stroy Trailer - GameSpot Trailers
-ymcpwq1ltQc # Star Wars Outlaws - Bande annonce officielle en avant-première mondiale | Ubisoft Forward

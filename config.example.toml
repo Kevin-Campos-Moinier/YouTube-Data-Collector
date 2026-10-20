@@ -1,0 +1,74 @@
+# A socialcollect run, described entirely in this file.
+# Copy it, edit it, then:   socialcollect estimate my-run.toml   and   socialcollect run my-run.toml
+# The parsed settings are frozen into the database with the data, so every dataset can be
+# traced back to the exact parameters that produced it.
+
+[run]
+# Unique name of the run (letters, digits, '.', '_', '-').
+name = "trailers-2026-09"
+# Only "youtube" for now.
+source = "youtube"
+# Daily quota of your Google Cloud project (10,000 for a standard key).
+daily_units = 10000
+# What to collect, one entry per string. Accepted forms:
+#   "VLGy63pt9vA"                                   a video ID
+#   "https://www.youtube.com/watch?v=VLGy63pt9vA"   any video URL (youtu.be, /shorts/, /live/, /embed/)
+#   "channel:@PlayStation" or a channel URL         the channel's latest uploads (1 unit per 50 videos)
+#   "playlist:PL..." or a playlist URL              the playlist's videos (1 unit per 50 videos)
+#   "search:star wars outlaws trailer"              100 units per 50 results; needs allow_search = true
+# Anything after " #" is a comment. Duplicates are ignored.
+targets = [
+  "VLGy63pt9vA  # Intergalactic: The Heretic Prophet - Announcement Trailer",
+  "W2Wnvvj33Wo  # The Last of Us Part II - PSX 2016 Reveal Trailer",
+  "UqCD5AX-hC4  # The Last of Us Part II - Story Trailer",
+  "ymcpwq1ltQc  # Star Wars Outlaws - world premiere trailer (FR)",
+]
+
+[collect]
+# Top-level comments per video (0 = all of them). This is the sample size *before*
+# language filtering: filtering labels comments, it never changes which ones were sampled.
+max_items = 100
+# "relevance" (YouTube's API ranking, which can differ from the website),
+# "time" (newest first), or "oldest" (oldest first: the API has no such order, so every
+# page of the video is read, which costs as much as collecting everything).
+order = "time"
+# Collect replies, and at most this many per top-level comment. Up to 5 replies come free
+# with each page of comments; more cost one extra call per thread.
+replies = true
+max_replies = 10
+# Optional date window (UTC), e.g. "2024-05-01" or "2024-05-01T12:00:00Z".
+# With order = "time", collection stops as soon as it passes `since`, which saves quota.
+# since = "2024-05-01"
+# until = "2024-06-01"
+# Videos collected in parallel (only speeds things up; the quota is the real limit).
+workers = 4
+# Keep the raw API responses (gzip-compressed, in the database) for provenance. Commenter
+# identifiers are removed from them unless [privacy] keep_identifiers = true.
+keep_raw = true
+# Maximum videos taken from each channel / playlist / search target (0 = all).
+max_videos_per_target = 50
+# search: targets cost 100 units per page of 50 results, and YouTube search results
+# are unstable (Rieder et al., 2025): off unless you need it.
+allow_search = false
+
+[process]
+# Keep comments in these languages (ISO 639-1). An empty list keeps every language.
+languages = ["en"]
+# Languages the detector chooses among. A short list prevents short comments from being
+# attributed to rare languages ("lol ok" -> Zulu); add languages your corpus contains.
+candidates = ["en", "fr", "es", "de", "it", "pt", "nl", "ru", "uk", "pl",
+              "tr", "ar", "hi", "id", "ja", "ko", "zh", "vi", "th", "sv"]
+# Minimum relative confidence (0-1) of the detected language.
+min_confidence = 0.2
+# For the text_clean column only (the original text is always kept).
+remove_emoji = true
+remove_punct = true
+# Replace @handles with @user in text and text_clean.
+redact_mentions = true
+
+[privacy]
+# false: commenters are stored as pseudonymous keys (HMAC-SHA256 with a project secret),
+# display names are dropped, raw text (which contains @handles) is not exported.
+# true: also keep the raw channel ID, display name and raw text. Needs a justification
+# for your ethics committee.
+keep_identifiers = false

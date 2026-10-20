@@ -1,0 +1,16 @@
+# secrets
+.env
+.secret
+# data: lives in ~/socialcollect-data, never in the code folder
+data/
+exports/
+runs/
+*.sqlite
+*.sqlite-*
+# build and caches
+__pycache__/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/

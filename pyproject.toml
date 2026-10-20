@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "socialcollect"
+version = "2.0.0"
+description = "Reproducible, quota-aware collection of social media comments (YouTube Data API v3)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Loïc Miller" }]
+keywords = ["youtube", "comments", "data-collection", "social-media", "research"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Sociology",
+]
+dependencies = ["tzdata; sys_platform == 'win32'"]
+
+[project.optional-dependencies]
+lang = ["lingua-language-detector>=2.0"]
+parquet = ["pyarrow>=14"]
+dev = ["pytest>=8"]
+all = ["lingua-language-detector>=2.0", "pyarrow>=14"]
+
+[project.urls]
+Homepage = "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector"
+Issues = "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/issues"
+Changelog = "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/blob/main/CHANGELOG.md"
+
+[project.scripts]
+socialcollect = "socialcollect.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"socialcollect.dashboard" = ["*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]

@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>socialcollect</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f6f4; --surface: #fcfcfb; --surface-2: #f0efec; --line: #e4e3df;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #7a7973;
+  --accent: #2a78d6; --accent-track: #cde2fb; --accent-ink: #1c5cab;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --other: #a3a29c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #383835;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86;
+    --accent: #3987e5; --accent-track: #184f95; --accent-ink: #86b6ef;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a64;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #383835;
+  --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86;
+  --accent: #3987e5; --accent-track: #184f95; --accent-ink: #86b6ef;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a64;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+nav { display: flex; gap: 4px; }
+nav button { background: none; border: 0; padding: 6px 12px; border-radius: 6px;
+  color: var(--text-2); font: inherit; cursor: pointer; }
+nav button.on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.quota { margin-left: auto; min-width: 260px; }
+.quota .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); }
+.meter { height: 8px; border-radius: 4px; background: var(--accent-track); overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.meter.warn > i { background: var(--serious); }
+.meter.full > i { background: var(--critical); }
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 12px; }
+.card h3 { font-size: 13px; margin: 14px 0 8px; color: var(--text-2); font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; }
+label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 3px; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+input[type=text], input[type=number], input[type=date], select, textarea {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--text); font: inherit; }
+textarea { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); margin: 4px 0; }
+.check input { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips label { display: inline-flex; gap: 4px; align-items: center; margin: 0; padding: 3px 8px;
+  border: 1px solid var(--line); border-radius: 12px; color: var(--text); cursor: pointer; }
+button.btn { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.btn:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.err { color: var(--critical); white-space: pre-wrap; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px;
+  border-radius: 10px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.pill.good::before { background: var(--good); } .pill.warning::before { background: var(--warning); }
+.pill.serious::before { background: var(--serious); } .pill.critical::before { background: var(--critical); }
+.pill.running::before { background: var(--accent); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tile .k { font-size: 12px; color: var(--text-2); } .tile .v { font-size: 22px; font-weight: 600; }
+.bars .b { display: grid; grid-template-columns: 170px 1fr 70px; gap: 8px; align-items: center; margin: 5px 0; }
+.bars .b .t { height: 14px; background: var(--surface-2); border-radius: 0 4px 4px 0; }
+.bars .b .t i { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .b .t i.x { background: var(--other); }
+.stack { display: flex; gap: 2px; height: 22px; margin: 10px 0 6px; }
+.stack i { display: block; height: 100%; min-width: 2px; }
+.stack i:first-child { border-radius: 4px 0 0 4px; } .stack i:last-child { border-radius: 0 4px 4px 0; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.hero { font-size: 48px; font-weight: 600; line-height: 1.1; }
+.quota { cursor: pointer; }
+.bars .b span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.log { font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; max-height: 220px; overflow: auto;
+  background: var(--bg); padding: 8px; border-radius: 6px; }
+.log .warning { color: var(--serious); } .log .error { color: var(--critical); }
+.txt { max-width: 560px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .axis text { fill: var(--muted); font-size: 11px; }
+.chart .grid line { stroke: var(--line); stroke-width: 1; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  display: none; white-space: nowrap; z-index: 2; }
+.tip .r { display: flex; gap: 6px; align-items: center; }
+.tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.hidden { display: none !important; }
+@media (max-width: 640px) {
+  header { padding: 10px 16px; } .quota { min-width: 100%; }
+  .bars .b { grid-template-columns: 110px 1fr 50px; }
+  table { display: block; overflow-x: auto; }
+  td.txt { min-width: 220px; } th, td { min-width: 64px; }
+}
+a { color: var(--accent-ink); }
+</style>
+</head>
+<body>
+<header>
+  <h1>socialcollect</h1>
+  <nav>
+    <button data-view="new" class="on">New run</button>
+    <button data-view="runs">Runs</button>
+    <button data-view="quota">Quota</button>
+    <button data-view="detail" id="nav-detail" class="hidden"></button>
+  </nav>
+  <div class="quota" title="Units spent by this tool today (other uses of the same key are not counted)">
+    <div class="lbl"><span id="q-text">quota</span><span id="q-reset"></span></div>
+    <div class="meter" id="q-meter"><i style="width:0"></i></div>
+  </div>
+</header>
+
+<main>
+<!-- NEW RUN -->
+<section id="view-new">
+  <div class="card">
+    <h2>1. What to collect</h2>
+    <div class="grid">
+      <div><label for="f-name">Run name</label><input type="text" id="f-name">
+        <div class="hint">Letters, digits, - _ . — must be unique.</div></div>
+      <div><label for="f-order">Comment order</label>
+        <select id="f-order">
+          <option value="relevance">Relevance (API ranking — may differ from the website)</option>
+          <option value="time">Newest first</option>
+          <option value="oldest">Oldest first (reads every page: full quota cost)</option>
+        </select></div>
+      <div><label for="f-max">Top-level comments per video</label><input type="number" id="f-max" min="0">
+        <div class="hint">0 = all of them.</div></div>
+      <div><label for="f-maxrep">Replies per comment</label><input type="number" id="f-maxrep" min="0">
+        <label class="check"><input type="checkbox" id="f-replies"> collect replies</label></div>
+      <div><label for="f-since">Only comments posted from</label><input type="date" id="f-since">
+        <div class="hint">Optional. With “newest first”, collection stops at this date.</div></div>
+      <div><label for="f-until">…until (exclusive)</label><input type="date" id="f-until"></div>
+    </div>
+    <h3>Videos</h3>
+    <textarea id="f-targets" placeholder="One per line — any of:
+https://www.youtube.com/watch?v=VLGy63pt9vA
+W2Wnvvj33Wo   # a comment after the ID is fine
+channel:@PlayStation      (latest uploads)
+playlist:PL...
+search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
+    <div class="grid" style="margin-top:8px">
+      <div><label for="f-maxvid">Videos per channel / playlist / search</label><input type="number" id="f-maxvid" min="0"></div>
+      <div><label class="check" style="margin-top:22px"><input type="checkbox" id="f-search"> allow search: targets (costly)</label></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Text processing &amp; privacy</h2>
+    <label>Keep comments written in</label>
+    <div class="chips" id="f-langs"></div>
+    <div class="hint">None selected = keep every language. Excluded comments are kept in the database with their reason; exports can include or drop them.</div>
+    <div class="grid" style="margin-top:10px">
+      <div><label for="f-conf">Minimum language confidence</label><input type="number" id="f-conf" min="0" max="1" step="0.05"></div>
+      <div><label class="check"><input type="checkbox" id="f-emoji"> remove emoji in clean text</label>
+        <label class="check"><input type="checkbox" id="f-punct"> remove punctuation in clean text</label>
+        <label class="check"><input type="checkbox" id="f-mentions"> replace @handles with @user</label></div>
+      <div><label class="check"><input type="checkbox" id="f-ids"> keep raw user IDs and names</label>
+        <div class="hint">Off: authors become pseudonymous keys (recommended for ethics approval).</div></div>
+      <div><label for="f-workers">Parallel videos</label><input type="number" id="f-workers" min="1" max="16">
+        <label for="f-daily" style="margin-top:6px">Daily quota of your key</label><input type="number" id="f-daily" min="1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Check and start</h2>
+    <div class="row">
+      <button class="btn" id="b-plan">Check videos &amp; estimate cost</button>
+      <span class="muted">Checking costs about 1 unit per 50 videos.</span>
+    </div>
+    <div id="plan-err" class="err"></div>
+    <div id="plan-out"></div>
+  </div>
+</section>
+
+<!-- RUNS -->
+<section id="view-quota" class="hidden">
+  <div class="card">
+    <h2>Quota today</h2>
+    <div class="row" style="align-items:flex-end;gap:28px">
+      <div><div class="hero" id="qv-left"></div><div class="muted">units left today</div></div>
+      <div style="flex:1;min-width:240px">
+        <div class="meter" id="qv-meter" style="height:12px;border-radius:6px"><i style="width:0"></i></div>
+        <div class="hint" id="qv-text"></div>
+      </div>
+    </div>
+    <p class="hint" id="qv-note"></p>
+  </div>
+  <div class="grid">
+    <div class="card"><h2>Today, by type of call</h2><div class="bars" id="qv-endpoints"></div></div>
+    <div class="card"><h2>Today, by run</h2><div class="bars" id="qv-runs"></div></div>
+  </div>
+  <div class="card"><h2>Units per day, last 14 days</h2><div class="chart" id="qv-days"></div></div>
+</section>
+
+<section id="view-runs" class="hidden">
+  <div class="card"><h2>Runs</h2><div id="runs-table"></div></div>
+</section>
+
+<!-- RUN DETAIL -->
+<section id="view-detail" class="hidden">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="row"><h2 style="margin:0" id="d-name"></h2><span id="d-status"></span>
+        <select id="d-seq" class="hidden" style="width:auto"></select></div>
+      <div class="row">
+        <button class="btn" id="b-pause">Pause</button>
+        <button class="btn" id="b-resume">Resume</button>
+        <label class="check"><input type="checkbox" id="d-wait"> continue after quota reset</label>
+        <button class="btn" id="b-refresh" title="Collect the same videos again as a new snapshot">Refresh snapshot</button>
+      </div>
+    </div>
+    <div id="d-msg" class="hint"></div>
+    <div id="d-err" class="err"></div>
+  </div>
+
+  <div class="card">
+    <h2>Progress</h2>
+    <div id="d-progress"></div>
+  </div>
+
+  <div class="card">
+    <h2>Coverage: where the comments went</h2>
+    <div id="d-coverage"></div>
+  </div>
+
+  <div class="card">
+    <h2>Filtering report</h2>
+    <div class="grid" id="d-report"></div>
+    <details style="margin-top:10px"><summary class="muted">Change language settings (no quota needed)</summary>
+      <div class="chips" id="p-langs" style="margin:8px 0"></div>
+      <div class="row"><label for="p-conf" style="margin:0">min confidence</label>
+        <input type="number" id="p-conf" min="0" max="1" step="0.05" style="width:90px">
+        <button class="btn" id="b-process">Re-run processing</button></div>
+    </details>
+  </div>
+
+  <div class="card" id="d-diff-card">
+    <h2>Changes since the previous snapshot</h2>
+    <div id="d-diff"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Explore</h2>
+      <label class="check"><input type="checkbox" id="x-kept" checked> kept comments only</label></div>
+    <h3>Comments posted per day</h3>
+    <div class="legend" id="x-legend"></div>
+    <div class="chart" id="x-timeline"></div>
+    <div class="grid" style="margin-top:8px">
+      <div><h3>Languages</h3><div class="bars" id="x-langs"></div></div>
+      <div><h3>Most liked</h3><div id="x-top"></div></div>
+    </div>
+    <h3>Browse</h3>
+    <div class="row">
+      <input type="text" id="x-search" placeholder="search text…" style="max-width:260px">
+      <select id="x-container" style="max-width:260px"><option value="">all videos</option></select>
+      <select id="x-reason" style="max-width:200px"><option value="">any status</option>
+        <option value="kept">kept</option><option value="other_language">other language</option>
+        <option value="undetected">undetected</option><option value="empty_after_cleaning">empty after cleaning</option></select>
+    </div>
+    <div id="x-sample" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Export</h2>
+    <div class="row">
+      <select id="e-format" style="width:auto"><option>csv</option><option>jsonl</option><option>parquet</option></select>
+      <label class="check"><input type="checkbox" id="e-kept"> kept comments only</label>
+      <label class="check"><input type="checkbox" id="e-excel"> Excel (; and BOM)</label>
+      <button class="btn primary" id="b-export">Export</button>
+    </div>
+    <div id="e-out" class="hint"></div>
+  </div>
+
+  <div class="card"><h2>Log</h2><div class="log" id="d-log"></div></div>
+</section>
+</main>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-US");
+const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const REASONS = {kept: "kept", other_language: "other language", undetected: "language undetected",
+  empty_after_cleaning: "empty after cleaning", unprocessed: "not processed yet"};
+
+let state = null, current = null, currentSeq = "", lastPlanKey = null, containerOrder = [];
+
+async function api(path, body) {
+  const r = await fetch("/api/" + path, body === undefined ? {} :
+    {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+// ---------- navigation ----------
+function show(view) {
+  for (const v of ["new", "runs", "quota", "detail"]) $("#view-" + v).classList.toggle("hidden", v !== view);
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
+  if (view === "runs") renderRuns();
+  if (view === "quota") { loadQuota(); history.replaceState(null, "", "#quota"); }
+}
+document.querySelectorAll("nav button").forEach((b) => b.onclick = () => show(b.dataset.view));
+
+// ---------- header quota ----------
+function renderQuota(b) {
+  const pct = Math.min(100, 100 * b.used / b.daily);
+  $("#q-text").textContent = `${fmt(b.used)} / ${fmt(b.daily)} units today`;
+  const ms = new Date(b.reset) - new Date();
+  const h = Math.floor(ms / 3.6e6), m = Math.floor(ms % 3.6e6 / 6e4);
+  $("#q-reset").textContent = `resets in ${h}h${String(m).padStart(2, "0")}`;
+  const meter = $("#q-meter");
+  meter.firstElementChild.style.width = pct + "%";
+  meter.classList.toggle("warn", pct >= 80 && pct < 100);
+  meter.classList.toggle("full", pct >= 100);
+}
+
+function statusPill(s, msg) {
+  const cls = {done: "good", running: "running", paused: "warning", incomplete: "serious",
+    created: "", unavailable: "warning", error: "critical"}[s] ?? "";
+  return `<span class="pill ${cls}" title="${esc(msg || "")}">${esc(s || "—")}</span>`;
+}
+
+// ---------- new run form ----------
+function fillForm(d) {
+  const now = new Date();
+  $("#f-name").value = "run-" + now.toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
+  const c = d.collect, p = d.process;
+  $("#f-order").value = c.order; $("#f-max").value = c.max_items; $("#f-maxrep").value = c.max_replies;
+  $("#f-replies").checked = c.replies; $("#f-maxvid").value = c.max_videos_per_target;
+  $("#f-search").checked = c.allow_search; $("#f-conf").value = p.min_confidence;
+  $("#f-emoji").checked = p.remove_emoji; $("#f-punct").checked = p.remove_punct;
+  $("#f-mentions").checked = p.redact_mentions; $("#f-ids").checked = d.privacy.keep_identifiers;
+  $("#f-workers").value = c.workers; $("#f-daily").value = d.daily_units;
+  langChips("#f-langs", state.candidates, p.languages);
+}
+function langChips(sel, all, on) {
+  $(sel).innerHTML = all.map((l) => `<label><input type="checkbox" value="${l}" ${on.includes(l) ? "checked" : ""}>${l}</label>`).join("");
+}
+const checkedLangs = (sel) => [...document.querySelectorAll(sel + " input:checked")].map((i) => i.value);
+
+function formConfig() {
+  const num = (id) => Number($(id).value);
+  const date = (id) => $(id).value ? $(id).value + "T00:00:00Z" : null;
+  return {
+    name: $("#f-name").value.trim(), source: "youtube", daily_units: num("#f-daily"),
+    targets: $("#f-targets").value.split("\n").map((s) => s.trim()).filter((s) => s && !s.startsWith("#")),
+    collect: {max_items: num("#f-max"), order: $("#f-order").value, replies: $("#f-replies").checked,
+      max_replies: num("#f-maxrep"), since: date("#f-since"), until: date("#f-until"),
+      workers: num("#f-workers"), keep_raw: true, max_videos_per_target: num("#f-maxvid"),
+      allow_search: $("#f-search").checked},
+    process: {...state.defaults.process, languages: checkedLangs("#f-langs"),
+      min_confidence: num("#f-conf"), remove_emoji: $("#f-emoji").checked,
+      remove_punct: $("#f-punct").checked, redact_mentions: $("#f-mentions").checked},
+    privacy: {keep_identifiers: $("#f-ids").checked},
+  };
+}
+const planKey = (c) => JSON.stringify([c.targets, c.collect]);
+
+$("#b-plan").onclick = async () => {
+  const cfg = formConfig();
+  $("#plan-err").textContent = ""; $("#plan-out").innerHTML = '<p class="muted">Checking…</p>';
+  $("#b-plan").disabled = true;
+  try {
+    const r = await api("plan", {config: cfg});
+    lastPlanKey = planKey(cfg);
+    renderPlan(r);
+  } catch (e) { $("#plan-err").textContent = e.message; $("#plan-out").innerHTML = ""; }
+  $("#b-plan").disabled = false;
+  refreshState();
+};
+
+function renderPlan(r) {
+  const e = r.estimate, b = r.budget;
+  const rows = r.containers.map((c) => {
+    const [lo, hi] = e.per_container[c.container_id];
+    const flag = c.availability !== "ok" ? statusPill("unavailable", c.availability) + " not found or private"
+      : c.comment_count == null ? statusPill("unavailable") + " comments probably disabled" : "";
+    return `<tr><td><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a></td>
+      <td class="txt">${esc(c.title || "")} ${flag}</td><td>${esc(c.author_name || "")}</td>
+      <td class="num">${fmt(c.comment_count)}</td><td class="num">${lo === hi ? lo : lo + "–" + hi}</td></tr>`;
+  }).join("");
+  const over = e.low > b.remaining;
+  $("#plan-out").innerHTML = `
+    <table style="margin-top:12px"><tr><th>video</th><th>title</th><th>channel</th>
+      <th class="num">comments</th><th class="num">units</th></tr>${rows}</table>
+    <div class="tiles" style="margin:14px 0">
+      <div class="tile"><div class="k">Videos</div><div class="v">${r.containers.length}</div></div>
+      <div class="tile"><div class="k">Estimated cost (units)</div><div class="v">${fmt(e.low)}${e.high > e.low ? "–" + fmt(e.high) : ""}</div></div>
+      <div class="tile"><div class="k">Left today</div><div class="v">${fmt(b.remaining)}</div></div>
+    </div>
+    ${over ? '<p class="err">The low estimate exceeds today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
+    <div class="row"><button class="btn primary" id="b-start">Start collection</button>
+      <label class="check"><input type="checkbox" id="f-wait" ${over ? "checked" : ""}> continue automatically after each quota reset (keep this page's server running)</label></div>`;
+  $("#b-start").onclick = startRun;
+}
+
+async function startRun() {
+  const cfg = formConfig();
+  if (planKey(cfg) !== lastPlanKey) { $("#plan-err").textContent = "Settings changed since the estimate: check again."; return; }
+  try {
+    await api("run", {config: cfg, wait: $("#f-wait").checked});
+    await refreshState();
+    openRun(cfg.name);
+  } catch (e) { $("#plan-err").textContent = e.message; }
+}
+
+// ---------- runs list ----------
+function renderRuns() {
+  if (!state) return;
+  if (!state.runs.length) { $("#runs-table").innerHTML = '<p class="muted">No runs yet.</p>'; return; }
+  $("#runs-table").innerHTML = `<table><tr><th>name</th><th>snapshot</th><th>status</th>
+    <th class="num">units</th><th>created</th><th></th></tr>` + state.runs.map((r) =>
+    `<tr class="click" data-name="${esc(r.name)}"><td>${esc(r.name)}</td><td>${r.seq ?? ""}</td>
+     <td>${statusPill(state.job.busy && state.job.run === r.name ? "running" : r.status, r.message)}</td>
+     <td class="num">${fmt(r.units)}</td><td>${esc((r.created_at || "").slice(0, 16).replace("T", " "))}</td>
+     <td class="muted">${esc(r.message || "")}</td></tr>`).join("") + "</table>";
+  document.querySelectorAll("#runs-table tr.click").forEach((tr) => tr.onclick = () => openRun(tr.dataset.name));
+}
+
+// ---------- run detail ----------
+function openRun(name) {
+  current = name; currentSeq = "";
+  history.replaceState(null, "", "#run=" + encodeURIComponent(name));
+  $("#nav-detail").textContent = name; $("#nav-detail").classList.remove("hidden");
+  show("detail");
+  loadRun().then(loadExplore);
+}
+
+async function loadRun() {
+  if (!current) return;
+  let d;
+  try { d = await api(`run?name=${encodeURIComponent(current)}&seq=${currentSeq}`); }
+  catch (e) { $("#d-err").textContent = e.message; return; }
+  $("#d-err").textContent = "";
+  const running = state && state.job.busy && state.job.run === current;
+  $("#d-name").textContent = d.run.name;
+  $("#d-status").innerHTML = statusPill(running ? "running" : d.snapshot.status, d.snapshot.message);
+  const latest = d.snapshots[d.snapshots.length - 1];
+  $("#d-msg").innerHTML = `${d.snapshot.message ? esc(d.snapshot.message) + " · " : ""}snapshot ${d.snapshot.seq} of ${d.snapshots.length},
+    ${fmt(d.snapshot.units)} units · started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC
+    · <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}`;
+  const seqSel = $("#d-seq");
+  seqSel.classList.toggle("hidden", d.snapshots.length < 2);
+  seqSel.innerHTML = d.snapshots.map((s) => `<option value="${s.seq}" ${s.seq === d.snapshot.seq ? "selected" : ""}>snapshot ${s.seq}</option>`).join("");
+  $("#b-pause").disabled = !running || state.job.stopping;
+  $("#b-resume").disabled = running || latest.status === "done" || (state && state.job.busy);
+  $("#b-refresh").disabled = running || latest.status !== "done" || (state && state.job.busy);
+
+  $("#d-progress").innerHTML = `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
+    <th class="num">comments</th><th class="num">replies</th></tr>` + d.containers.map((c) => {
+      const col = d.config.collect, tot = c.comment_count;
+      const capped = col.order !== "oldest" && col.max_items > 0;
+      const target = capped ? Math.min(col.max_items, tot ?? col.max_items) : tot;
+      const got = capped ? c.threads : c.threads + c.replies;
+      const pct = c.phase === "done" || c.phase === "replies" ? 100 : target ? Math.min(100, 100 * got / target) : 0;
+      const bar = c.phase === "replies" ? `comments done · replies: ${fmt(c.replies_left)} threads left`
+        : c.phase === "unavailable" ? "" : capped ? `${fmt(c.threads)} of ${fmt(target)} comments`
+        : `${fmt(got)} of ~${fmt(tot)} comments + replies`;
+      const st = c.phase === "done" ? "done" : c.phase === "unavailable" ? "unavailable"
+        : c.error ? "error" : !running ? "paused" : c.phase === "pending" ? "queued" : "running";
+      const note = c.error || "";
+      return `<tr><td class="txt"><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a> ${esc(c.title || "")}</td>
+        <td>${statusPill(st)} <span class="muted">${esc(note)}</span></td>
+        <td>${c.phase === "unavailable" ? "" : `<div class="meter"><i style="width:${pct}%"></i></div><div class="hint">${bar}</div>`}</td>
+        <td class="num">${fmt(c.threads)}</td><td class="num">${fmt(c.replies)}</td></tr>`;
+    }).join("") + "</table>";
+
+  renderCoverage(d.coverage);
+  const rep = d.report;
+  $("#d-report").innerHTML = ["comments", "replies"].map((k) => {
+    const r = rep[k], tot = r.collected || 0;
+    const keys = ["kept", "other_language", "undetected", "empty_after_cleaning", "unprocessed"].filter((x) => r[x]);
+    return `<div><h3>${k === "comments" ? "Top-level comments" : "Replies"}: ${fmt(tot)} collected</h3><div class="bars">` +
+      keys.map((x) => `<div class="b"><span>${REASONS[x]}</span><div class="t"><i class="${x === "kept" ? "" : "x"}" style="width:${tot ? 100 * r[x] / tot : 0}%"></i></div><span>${fmt(r[x])}</span></div>`).join("") +
+      "</div></div>";
+  }).join("");
+  if (!document.querySelector("#p-langs input")) {
+    langChips("#p-langs", d.config.process.candidates, d.config.process.languages);
+    $("#p-conf").value = d.config.process.min_confidence;
+  }
+
+  $("#d-log").innerHTML = d.events.map((e) =>
+    `<div class="${esc(e.level)}">${esc(e.ts.slice(5, 16).replace("T", " "))} ${esc(e.message)}</div>`).join("") || '<span class="muted">—</span>';
+  containerOrder = d.containers.map((c) => c.container_id);
+  const opts = d.containers.map((c) => `<option value="${esc(c.container_id)}">${esc((c.title || c.container_id).slice(0, 50))}</option>`).join("");
+  if ($("#x-container").options.length !== d.containers.length + 1) $("#x-container").innerHTML = '<option value="">all videos</option>' + opts;
+  loadDiff();
+}
+
+$("#d-seq").onchange = (e) => { currentSeq = e.target.value; loadRun().then(loadExplore); };
+$("#b-pause").onclick = () => act("pause", {});
+$("#b-resume").onclick = () => act("resume", {name: current, wait: $("#d-wait").checked});
+$("#b-refresh").onclick = () => { if (confirm("Collect the same videos again as a new snapshot? This spends quota.")) act("refresh", {name: current, wait: $("#d-wait").checked}); };
+$("#b-process").onclick = () => act("process", {name: current, process: {languages: checkedLangs("#p-langs"), min_confidence: Number($("#p-conf").value)}}).then(loadExplore);
+$("#b-export").onclick = async () => {
+  $("#e-out").textContent = "Exporting…";
+  try {
+    const r = await api("export", {name: current, format: $("#e-format").value, kept: $("#e-kept").checked,
+      excel: $("#e-excel").checked, seq: currentSeq ? Number(currentSeq) : null});
+    $("#e-out").innerHTML = `Written to <code>${esc(r.path)}</code> (data, exclusion_report.json, run_manifest.json, codebook.md).`;
+  } catch (e) { $("#e-out").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+async function act(path, body) {
+  try { await api(path, body); $("#d-err").textContent = ""; } catch (e) { $("#d-err").textContent = e.message; }
+  await refreshState(); loadRun();
+}
+
+// ---------- diff ----------
+async function loadDiff() {
+  const d = await api(`diff?name=${encodeURIComponent(current)}&seq=${currentSeq}`).catch(() => ({available: false}));
+  $("#d-diff-card").classList.toggle("hidden", !d.available);
+  if (!d.available) return;
+  const txt = (s) => `<span class="txt">${esc((s || "").slice(0, 160))}</span>`;
+  $("#d-diff").innerHTML = `<div class="tiles">
+      <div class="tile"><div class="k">Seen again</div><div class="v">${fmt(d.matched)}</div></div>
+      <div class="tile"><div class="k">New in this snapshot</div><div class="v">${fmt(d.new)}</div></div>
+      <div class="tile"><div class="k">Not re-sampled</div><div class="v">${fmt(d.missing)}</div></div>
+      <div class="tile"><div class="k">No longer public</div><div class="v">${fmt(d.gone.length)}</div></div></div>
+    <p class="hint">“Not re-sampled” comments were checked one by one: “no longer public” ones were deleted, hidden or held for review since snapshot ${d.prev_seq}.</p>
+    ${d.gone.length ? `<h3>No longer public</h3><table><tr><th>video</th><th>posted</th><th class="num">likes</th><th>text (from snapshot ${d.prev_seq})</th></tr>` +
+      d.gone.slice(0, 100).map((g) => `<tr><td>${esc(g.container_id)}</td><td>${esc((g.created_at || "").slice(0, 10))}</td><td class="num">${fmt(g.like_count)}</td><td>${txt(g.text)}</td></tr>`).join("") + "</table>" : ""}
+    ${d.likes.length ? `<h3>Largest like changes</h3><table><tr><th>video</th><th class="num">before</th><th class="num">after</th><th class="num">change</th><th>text</th></tr>` +
+      d.likes.map((l) => `<tr><td>${esc(l.container_id)}</td><td class="num">${fmt(l.before)}</td><td class="num">${fmt(l.after)}</td><td class="num">${l.after - l.before > 0 ? "+" : ""}${fmt(l.after - l.before)}</td><td>${txt(l.text)}</td></tr>`).join("") + "</table>" : ""}`;
+}
+
+// ---------- explore ----------
+let exploreTimer = null;
+["#x-kept", "#x-container", "#x-reason"].forEach((s) => $(s).onchange = loadExplore);
+$("#x-search").oninput = () => { clearTimeout(exploreTimer); exploreTimer = setTimeout(loadExplore, 300); };
+
+async function loadExplore() {
+  if (!current) return;
+  const q = new URLSearchParams({name: current, seq: currentSeq, kept: $("#x-kept").checked ? "1" : "0",
+    search: $("#x-search").value, container: $("#x-container").value, reason: $("#x-reason").value});
+  let d;
+  try { d = await api("explore?" + q); } catch (e) { return; }
+  renderTimeline(d.timeline);
+  const tot = d.langs.reduce((a, l) => a + l.n, 0);
+  const langs = d.langs.slice(0, 8), rest = d.langs.slice(8).reduce((a, l) => a + l.n, 0);
+  if (rest) langs.push({lang: "other", n: rest});
+  $("#x-langs").innerHTML = langs.map((l) => `<div class="b"><span>${esc(l.lang || "undetected")}</span><div class="t"><i style="width:${tot ? 100 * l.n / Math.max(...langs.map((z) => z.n)) : 0}%"></i></div><span>${fmt(l.n)}</span></div>`).join("") || '<p class="muted">No data yet.</p>';
+  $("#x-top").innerHTML = d.top.length ? `<table>` + d.top.map((t) => `<tr><td class="num">${fmt(t.like_count)}</td><td class="txt">${esc((t.text || "").slice(0, 140))}</td></tr>`).join("") + "</table>" : '<p class="muted">No data yet.</p>';
+  $("#x-sample").innerHTML = `<p class="hint">${d.sample.length === 200 ? "First 200 matches" : d.sample.length + " matches"}, oldest first. Authors are pseudonymous.</p>` +
+    (d.sample.length ? `<table><tr><th>posted</th><th>video</th><th></th><th class="num">likes</th><th>lang</th><th>text</th></tr>` +
+    d.sample.map((s) => `<tr><td>${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td><td>${esc(s.container_id)}</td>
+      <td class="muted">${s.depth ? "↳ reply" : ""}</td><td class="num">${fmt(s.like_count)}</td>
+      <td>${esc(s.lang || "")}${s.excluded_reason ? ` <span class="muted">(${esc(REASONS[s.excluded_reason])})</span>` : ""}</td>
+      <td class="txt">${esc(s.text)}</td></tr>`).join("") + "</table>" : "");
+}
+
+// Line chart: comments per day (per week when the span is long), one series per video.
+function renderTimeline(rows) {
+  const box = $("#x-timeline");
+  if (!rows.length) { box.innerHTML = '<p class="muted">No data yet.</p>'; $("#x-legend").innerHTML = ""; return; }
+  const day = (s) => Date.parse(s + "T00:00:00Z");
+  let t0 = Infinity, t1 = -Infinity;
+  for (const r of rows) { const t = day(r.day); t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+  const weekly = (t1 - t0) / 864e5 > 120, step = (weekly ? 7 : 1) * 864e5;
+  const bucket = (t) => t0 + Math.floor((t - t0) / step) * step;
+  const nb = Math.floor((t1 - t0) / step) + 1;
+  // series in video order; beyond 7 videos the rest fold into "Other"
+  const totals = new Map();
+  for (const r of rows) totals.set(r.container_id, (totals.get(r.container_id) || 0) + r.n);
+  // colors follow the video's position in the run, whatever is currently on screen
+  const order = [...containerOrder.filter((v) => totals.has(v)), ...[...totals.keys()].filter((k) => !containerOrder.includes(k))];
+  const named = containerOrder.length > 8 ? order.filter((c) => containerOrder.indexOf(c) < 7) : order;
+  const keyOf = (c) => named.includes(c) ? c : "Other";
+  const keys = [...named, ...(order.length > named.length ? ["Other"] : [])];
+  const data = new Map(keys.map((k) => [k, new Array(nb).fill(0)]));
+  for (const r of rows) data.get(keyOf(r.container_id))[Math.round((bucket(day(r.day)) - t0) / step)] += r.n;
+  const color = (k) => k === "Other" ? css("--other") : css(SERIES[Math.max(0, containerOrder.indexOf(k)) % 8]);
+  const title = (k) => k === "Other" ? "Other videos" : ($(`#x-container option[value="${CSS.escape(k)}"]`)?.textContent || k);
+  $("#x-legend").innerHTML = keys.length > 1 ? keys.map((k, i) => `<span><i style="background:${color(k)}"></i>${esc(title(k))}</span>`).join("") : "";
+
+  const W = Math.max(320, box.clientWidth || 800), H = 220, m = {l: 44, r: 12, t: 10, b: 24};
+  const ymax = Math.max(1, ...[...data.values()].flat());
+  const nice = (v) => { const p = 10 ** Math.floor(Math.log10(v)); return Math.ceil(v / p / (v / p > 5 ? 2 : 1)) * p * (v / p > 5 ? 2 : 1); };
+  const top = nice(ymax);
+  const x = (i) => m.l + (nb === 1 ? (W - m.l - m.r) / 2 : i * (W - m.l - m.r) / (nb - 1));
+  const y = (v) => m.t + (H - m.t - m.b) * (1 - v / top);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Comments posted per ${weekly ? "week" : "day"}">`;
+  svg += '<g class="grid">' + [0, .25, .5, .75, 1].map((f) => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(top * f)}" y2="${y(top * f)}"/>`).join("") + "</g>";
+  svg += '<g class="axis">' + [0, .5, 1].map((f) => `<text x="${m.l - 6}" y="${y(top * f) + 4}" text-anchor="end">${fmt(Math.round(top * f))}</text>`).join("");
+  const ticks = Math.min(6, nb);
+  for (let k = 0; k < ticks; k++) {
+    const i = Math.round(k * (nb - 1) / Math.max(1, ticks - 1));
+    const anchor = ticks > 1 && k === 0 ? "start" : ticks > 1 && k === ticks - 1 ? "end" : "middle";
+    svg += `<text x="${x(i)}" y="${H - 6}" text-anchor="${anchor}">${new Date(t0 + i * step).toISOString().slice(0, 10)}</text>`;
+  }
+  svg += "</g>";
+  keys.forEach((k, s) => {
+    const v = data.get(k);
+    svg += `<polyline fill="none" stroke="${color(k)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${v.map((n, i) => x(i) + "," + y(n)).join(" ")}"/>`;
+  });
+  svg += `<line id="x-cross" y1="${m.t}" y2="${H - m.b}" stroke="${css("--muted")}" stroke-width="1" style="display:none"/>`;
+  svg += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" id="x-hit"/></svg><div class="tip" id="x-tip"></div>`;
+  box.innerHTML = svg;
+  const hit = $("#x-hit"), tip = $("#x-tip"), cross = $("#x-cross");
+  hit.onmousemove = (ev) => {
+    const r = box.querySelector("svg").getBoundingClientRect();
+    const px = (ev.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(nb - 1, Math.round((px - m.l) / ((W - m.l - m.r) / Math.max(1, nb - 1)))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
+    tip.innerHTML = `<b>${weekly ? "week of " : ""}${new Date(t0 + i * step).toISOString().slice(0, 10)}</b>` +
+      keys.map((k, s) => `<div class="r"><i style="background:${color(k)}"></i>${esc(title(k).slice(0, 40))}: ${fmt(data.get(k)[i])}</div>`).join("");
+    tip.style.display = "block";
+    const left = x(i) * r.width / W;
+    tip.style.left = (left > r.width / 2 ? left - tip.offsetWidth - 12 : left + 12) + "px";
+    tip.style.top = "8px";
+  };
+  hit.onmouseleave = () => { tip.style.display = "none"; cross.style.display = "none"; };
+}
+
+
+// ---------- coverage ----------
+const pctOf = (n, tot) => tot ? (100 * n / tot).toFixed(n && 100 * n / tot < 1 ? 1 : 0) + "%" : "—";
+function coverageParts(cov) {
+  const gap = cov.exhaustive ? "Listed by YouTube, never returned by the API"
+    : "Not in your sample (comment cap or date window), or never returned";
+  return [
+    {k: "kept", label: "Collected and kept", color: "var(--s1)"},
+    {k: "filtered_out", label: "Collected, then filtered out (language / empty)", color: "var(--accent-track)"},
+    {k: "not_returned", label: "Replies YouTube reported but did not return", color: "var(--s2)"},
+    {k: "over_reply_cap", label: "Replies beyond your reply cap", color: "var(--s3)"},
+    {k: "not_sampled", label: gap, color: "var(--other)"},
+  ];
+}
+function renderCoverage(cov) {
+  const t = cov.total, parts = coverageParts(cov);
+  const skipped = Object.entries(cov.skipped).map(([k, n]) => `${n} ${esc(k.replace(/_/g, " "))}`).join(", ");
+  if (!t.videos) {
+    $("#d-coverage").innerHTML = `<p class="muted">Shown once at least one video is finished (and its comment count is public).</p>` +
+      (skipped ? `<p class="hint">Videos skipped: ${skipped}.</p>` : "");
+    return;
+  }
+  const tot = t.on_platform;
+  $("#d-coverage").innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="k">Comments on YouTube (${t.videos} finished video${t.videos > 1 ? "s" : ""})</div><div class="v">${fmt(tot)}</div></div>
+      <div class="tile"><div class="k">Collected</div><div class="v">${fmt(t.collected)} <span class="muted" style="font-size:14px">${pctOf(t.collected, tot)}</span></div></div>
+      <div class="tile"><div class="k">Kept after filtering</div><div class="v">${fmt(t.kept)} <span class="muted" style="font-size:14px">${pctOf(t.kept, tot)}</span></div></div>
+    </div>
+    <div class="stack" role="img" aria-label="Breakdown of the comments on YouTube">${parts.filter((p) => t[p.k]).map((p) =>
+      `<i style="flex:${t[p.k]};background:${p.color}" title="${esc(p.label)}: ${fmt(t[p.k])} (${pctOf(t[p.k], tot)})"></i>`).join("")}</div>
+    <table>${parts.map((p) => `<tr><td><span class="sw" style="background:${p.color}"></span>${esc(p.label)}</td>
+      <td class="num">${fmt(t[p.k])}</td><td class="num">${pctOf(t[p.k], tot)}</td></tr>`).join("")}</table>
+    <p class="hint">${cov.exhaustive
+      ? "This run asked for every comment, so the grey part is what YouTube counts but its API never returned: comments held for review or filtered as spam, from hidden or deleted accounts, or posted after the count was taken."
+      : "This run sampled part of each video, so the grey part mixes comments outside your sample with any the API never returned. Collect a video with “0 = all” comments to measure what the API withholds."}
+      Counts come from YouTube at check time and move while you collect, so percentages are approximate.
+      ${skipped ? `Videos skipped: ${skipped}.` : ""}</p>
+    <h3>Per video</h3>
+    <table><tr><th>video</th><th class="num">on YouTube</th><th class="num">collected</th><th class="num">kept</th>
+      <th class="num">${cov.exhaustive ? "never returned" : "not sampled"}</th><th class="num">over reply cap</th><th class="num">replies not returned</th></tr>` +
+    cov.videos.map((v) => `<tr><td class="txt">${esc(v.title || v.container_id)}</td>
+      <td class="num">${v.on_platform == null ? "hidden" : fmt(v.on_platform)}</td>
+      <td class="num">${fmt(v.collected)} <span class="muted">${v.on_platform ? pctOf(v.collected, v.on_platform) : ""}</span></td>
+      <td class="num">${fmt(v.kept)}</td>
+      <td class="num">${v.done ? fmt(v.not_sampled) : '<span class="muted">…</span>'}</td>
+      <td class="num">${fmt(v.over_reply_cap)}</td>
+      <td class="num">${v.done ? fmt(v.not_returned) : '<span class="muted">…</span>'}</td></tr>`).join("") + "</table>";
+}
+
+// ---------- quota ----------
+const ENDPOINTS = {commentThreads: "comment pages (100 comments each)", comments: "reply pages & refresh checks",
+  videos: "video checks (50 per unit)", channels: "channel lookups", playlistItems: "channel / playlist listings",
+  search: "searches (100 units each)"};
+function barList(obj, labels = {}) {
+  const e = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+  if (!e.length) return '<p class="muted">Nothing spent yet today.</p>';
+  const max = e[0][1];
+  return e.map(([k, n]) => `<div class="b"><span>${esc(labels[k] || k)}</span><div class="t"><i style="width:${100 * n / max}%"></i></div><span>${fmt(n)}</span></div>`).join("");
+}
+async function loadQuota() {
+  let q;
+  try { q = await api("quota"); } catch (e) { return; }
+  const b = q.budget, pct = Math.min(100, 100 * b.used / b.daily);
+  $("#qv-left").textContent = fmt(b.remaining);
+  const m = $("#qv-meter");
+  m.firstElementChild.style.width = pct + "%";
+  m.classList.toggle("warn", pct >= 80 && pct < 100); m.classList.toggle("full", pct >= 100);
+  const reset = new Date(b.reset);
+  $("#qv-text").textContent = `${fmt(b.used)} of ${fmt(b.daily)} used (${pct.toFixed(1)}%) · resets ${reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})} your time` +
+    ` · room for up to ~${fmt(b.remaining * 100)} more comments`;
+  $("#qv-note").innerHTML = `Counts only the calls made by this tool. If the same key is used elsewhere, YouTube's own figure is on the
+    <a href="${esc(q.console)}" target="_blank" rel="noopener">Google Cloud quota page</a> (it can lag by a few minutes).`;
+  const labels = {...ENDPOINTS};
+  $("#qv-endpoints").innerHTML = barList(q.endpoints, labels);
+  $("#qv-runs").innerHTML = barList(q.runs);
+  renderDays(q.days, b.daily);
+}
+function renderDays(days, daily) {
+  const box = $("#qv-days"), W = Math.max(320, box.clientWidth || 800), H = 200, m = {l: 48, r: 12, t: 14, b: 24};
+  const max = Math.max(1, ...days.map((d) => d.units));
+  const showCap = max >= daily * 0.5;
+  const top = showCap ? Math.max(daily, max) : max;
+  const niceTop = (() => { const p = 10 ** Math.floor(Math.log10(top)); for (const f of [1, 2, 2.5, 5, 10]) if (f * p >= top) return f * p; })();
+  const slot = (W - m.l - m.r) / days.length, bw = Math.min(24, slot - 4);
+  const y = (v) => m.t + (H - m.t - m.b) * (1 - v / niceTop);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Units spent per day">`;
+  svg += '<g class="grid">' + [0, .5, 1].map((f) => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(niceTop * f)}" y2="${y(niceTop * f)}"/>`).join("") + "</g>";
+  svg += '<g class="axis">' + [0, .5, 1].map((f) => `<text x="${m.l - 6}" y="${y(niceTop * f) + 4}" text-anchor="end">${fmt(niceTop * f)}</text>`).join("");
+  days.forEach((d, i) => { if (i % 2 === days.length % 2 || i === days.length - 1)
+    svg += `<text x="${m.l + slot * (i + .5)}" y="${H - 6}" text-anchor="middle">${d.day.slice(5)}</text>`; });
+  svg += "</g>";
+  if (showCap) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(daily)}" y2="${y(daily)}" stroke="${css("--text-2")}" stroke-width="1"/>
+    <text x="${W - m.r}" y="${y(daily) - 4}" text-anchor="end" style="fill:${css("--text-2")};font-size:11px">daily quota</text>`;
+  days.forEach((d, i) => {
+    if (!d.units) return;
+    const x = m.l + slot * (i + .5) - bw / 2, h = y(0) - y(d.units), r = Math.min(4, h, bw / 2);
+    svg += `<path fill="${css("--accent")}" d="M${x},${y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z"/>`;
+  });
+  days.forEach((d, i) => svg += `<rect x="${m.l + slot * i}" y="${m.t}" width="${slot}" height="${H - m.t - m.b}" fill="transparent" data-i="${i}"/>`);
+  box.innerHTML = svg + '<div class="tip" id="qv-tip"></div>';
+  const tip = $("#qv-tip");
+  box.querySelectorAll("rect[data-i]").forEach((r) => {
+    r.onmouseenter = () => {
+      const d = days[r.dataset.i], sv = box.querySelector("svg").getBoundingClientRect();
+      tip.innerHTML = `<b>${d.day}</b><div>${fmt(d.units)} units (${pctOf(d.units, daily)} of the daily quota)</div>`;
+      tip.style.display = "block";
+      const left = (m.l + slot * (+r.dataset.i + .5)) * sv.width / W;
+      tip.style.left = (left > sv.width / 2 ? left - tip.offsetWidth - 10 : left + 10) + "px"; tip.style.top = "6px";
+    };
+    r.onmouseleave = () => tip.style.display = "none";
+  });
+}
+$(".quota").onclick = () => show("quota");
+
+// ---------- polling ----------
+async function refreshState() {
+  try { state = await api("state"); } catch (e) { return; }
+  renderQuota(state.budget);
+  if (!$("#view-runs").classList.contains("hidden")) renderRuns();
+  if (!$("#view-quota").classList.contains("hidden")) loadQuota();
+}
+let wasBusy = false;
+async function tick() {
+  await refreshState();
+  if (current && !$("#view-detail").classList.contains("hidden")) {
+    const busy = state.job.busy && state.job.run === current;
+    if (busy || wasBusy) { await loadRun(); if (!busy) loadExplore(); }
+    wasBusy = busy;
+  }
+}
+
+(async function init() {
+  await refreshState();
+  fillForm(state.defaults);
+  const linked = decodeURIComponent((location.hash.match(/^#run=(.+)$/) || [])[1] || "");
+  if (location.hash === "#quota") show("quota");
+  else if (linked && state.runs.some((r) => r.name === linked)) openRun(linked);
+  else if (state.job.busy) openRun(state.job.run);
+  setInterval(tick, 2000);
+  setInterval(() => { if (current && state?.job.busy && state.job.run === current) loadExplore(); }, 10000);
+})();
+</script>
+</body>
+</html>
