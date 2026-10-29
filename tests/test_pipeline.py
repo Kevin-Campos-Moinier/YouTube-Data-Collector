@@ -3,11 +3,11 @@
 import pytest
 
 from fakeyt import FakeYouTube, make_video
-from socialcollect import config, pipeline
-from socialcollect.budget import Budget
-from socialcollect.export import export
-from socialcollect.sources.youtube import YouTubeSource
-from socialcollect.store import Store
+from smdc import config, pipeline
+from smdc.budget import Budget
+from smdc.export import export
+from smdc.sources.youtube import YouTubeSource
+from smdc.store import Store
 
 SECRET = b"test-secret"
 

@@ -1,5 +1,5 @@
 @echo off
-rem Double-click to start the socialcollect dashboard (installs it on first use).
+rem Double-click to start the smdc dashboard (installs it on first use).
 cd /d "%~dp0"
 set "PY=py -3"
 %PY% -c "import sys; sys.exit(sys.version_info < (3, 11))" >nul 2>nul || set "PY=python"

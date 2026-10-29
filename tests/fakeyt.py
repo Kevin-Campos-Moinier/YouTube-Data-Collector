@@ -2,7 +2,7 @@
 
 import datetime as dt
 
-from socialcollect import net
+from smdc import net
 
 BASE = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
 TEXTS = ["This game looks great", "Joel deserved better", "c'est vraiment nul ce jeu",

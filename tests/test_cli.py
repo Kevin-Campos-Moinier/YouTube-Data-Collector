@@ -1,8 +1,8 @@
 """CLI end to end, with the in-memory YouTube."""
 
 from fakeyt import FakeYouTube, make_video
-from socialcollect import cli
-from socialcollect.sources.youtube import YouTubeSource
+from smdc import cli
+from smdc.sources.youtube import YouTubeSource
 
 TOML = """
 [run]

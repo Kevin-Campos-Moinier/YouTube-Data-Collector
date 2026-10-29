@@ -1,12 +1,12 @@
-"""Installs socialcollect on first use, then starts the dashboard. Works on Windows, macOS, Linux.
+"""Installs smdc on first use, then starts the dashboard. Works on Windows, macOS, Linux.
 
 You normally don't run this directly: double-click `dashboard.bat` (Windows) or
 `dashboard.command` (macOS), or run `./dashboard.sh` (Linux). Those find a Python >= 3.11
-and call this script. Arguments are passed to `socialcollect dashboard` (e.g. --port 8800).
+and call this script. Arguments are passed to `smdc dashboard` (e.g. --port 8800).
 
 Environment variables:
-    SOCIALCOLLECT_VENV: where the Python environment goes (default ~/.venvs/socialcollect).
-    SOCIALCOLLECT_DATA: where runs are stored (default ~/socialcollect-data).
+    SMDC_VENV: where the Python environment goes (default ~/.venvs/smdc).
+    SMDC_DATA: where runs are stored (default ~/smdc-data).
 Both default to folders outside the code folder: an environment breaks when its folder is
 synced or moved, and a database written by two computers through a synced folder (OneDrive,
 Dropbox, iCloud) gets corrupted.
@@ -20,7 +20,7 @@ import venv
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-VENV = Path(os.environ.get("SOCIALCOLLECT_VENV") or Path.home() / ".venvs" / "socialcollect")
+VENV = Path(os.environ.get("SMDC_VENV") or Path.home() / ".venvs" / "smdc")
 BIN = VENV / ("Scripts" if os.name == "nt" else "bin")
 
 
@@ -30,11 +30,11 @@ def exe(name: str) -> Path:
 
 def install() -> None:
     """Creates the environment and installs the package when missing or outdated."""
-    stamp = VENV / ".socialcollect-installed"
+    stamp = VENV / ".smdc-installed"
     want = hashlib.sha256((HERE / "pyproject.toml").read_bytes()).hexdigest()
     alive = exe("python").exists() and subprocess.run([str(exe("python")), "-c", "import pip"],
                                                       capture_output=True).returncode == 0
-    if alive and exe("socialcollect").exists() and stamp.exists() and stamp.read_text() == want:
+    if alive and exe("smdc").exists() and stamp.exists() and stamp.read_text() == want:
         return
     if not alive:
         # Missing, or built for a Python that is no longer installed (after a system upgrade):
@@ -45,7 +45,7 @@ def install() -> None:
         except (OSError, subprocess.CalledProcessError) as e:
             sys.exit(f"Could not create the environment ({e}).\n"
                      "On Debian/Ubuntu, install the venv module first: sudo apt install python3-venv")
-    print("Installing socialcollect and its dependencies (first launch or update, a few minutes)...")
+    print("Installing smdc and its dependencies (first launch or update, a few minutes)...")
     pip = [str(exe("python")), "-m", "pip", "install", "--quiet", "--disable-pip-version-check"]
     subprocess.run(pip + ["--upgrade", "pip"], check=True)
     subprocess.run(pip + ["-e", f"{HERE}[all]"], check=True)
@@ -93,7 +93,7 @@ def main() -> int:
     if not api_key_ready():
         return 1
     os.chdir(HERE)  # so the dashboard finds .env
-    proc = subprocess.Popen([str(exe("socialcollect")), "dashboard", *sys.argv[1:]])
+    proc = subprocess.Popen([str(exe("smdc")), "dashboard", *sys.argv[1:]])
     try:
         return proc.wait()
     except KeyboardInterrupt:  # Ctrl-C reaches the dashboard too; let it pause cleanly

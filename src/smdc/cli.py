@@ -1,15 +1,15 @@
 """Command line interface.
 
-    socialcollect estimate run.toml          # resolve targets, show cost; costs ~1 unit/50 videos
-    socialcollect run run.toml [--wait]      # create the run and collect
-    socialcollect resume NAME [--wait]       # continue a paused/incomplete run
-    socialcollect refresh NAME [--wait]      # new snapshot of the same videos
-    socialcollect process NAME [--config f]  # redo text processing (no API calls)
-    socialcollect export NAME [--format csv|jsonl|parquet] [--kept] [--excel]
-    socialcollect status [NAME]
-    socialcollect dashboard [--port 8777]
+    smdc estimate run.toml          # resolve targets, show cost; costs ~1 unit/50 videos
+    smdc run run.toml [--wait]      # create the run and collect
+    smdc resume NAME [--wait]       # continue a paused/incomplete run
+    smdc refresh NAME [--wait]      # new snapshot of the same videos
+    smdc process NAME [--config f]  # redo text processing (no API calls)
+    smdc export NAME [--format csv|jsonl|parquet] [--kept] [--excel]
+    smdc status [NAME]
+    smdc dashboard [--port 8777]
 
-Global option --data DIR (default $SOCIALCOLLECT_DATA or ~/socialcollect-data) selects the
+Global option --data DIR (default $SMDC_DATA or ~/smdc-data) selects the
 folder holding the database, the pseudonymization secret, run files and exports.
 """
 
@@ -29,7 +29,7 @@ from .store import Store
 
 # Outside the code folder on purpose: a database in a synced folder (OneDrive, Dropbox, iCloud)
 # that two computers write to gets corrupted.
-DEFAULT_DATA = Path.home() / "socialcollect-data"
+DEFAULT_DATA = Path.home() / "smdc-data"
 
 
 class Ctx:
@@ -39,7 +39,7 @@ class Ctx:
         self.data = data_dir.resolve()
         self.data.mkdir(mode=0o700, parents=True, exist_ok=True)  # personal data: owner only
         config.load_dotenv(Path.cwd() / ".env", self.data.parent / ".env")
-        self.store = Store(self.data / "socialcollect.sqlite")
+        self.store = Store(self.data / "smdc.sqlite")
 
     def secret(self) -> bytes:
         return load_secret(self.data)
@@ -177,11 +177,11 @@ def cmd_dashboard(ctx: Ctx, a) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="socialcollect", description=__doc__.split("\n")[0])
-    p.add_argument("--data", default=os.environ.get("SOCIALCOLLECT_DATA") or str(DEFAULT_DATA),
-                   help=f"data folder (default $SOCIALCOLLECT_DATA or {DEFAULT_DATA})")
+    p = argparse.ArgumentParser(prog="smdc", description=__doc__.split("\n")[0])
+    p.add_argument("--data", default=os.environ.get("SMDC_DATA") or str(DEFAULT_DATA),
+                   help=f"data folder (default $SMDC_DATA or {DEFAULT_DATA})")
     p.add_argument("-v", "--verbose", action="store_true")
-    p.add_argument("--version", action="version", version=f"socialcollect {__version__}")
+    p.add_argument("--version", action="version", version=f"smdc {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("estimate", help="resolve targets and estimate the quota cost")

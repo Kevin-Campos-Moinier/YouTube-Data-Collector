@@ -20,12 +20,12 @@ AUTHOR_FIELDS = {"authorChannelId", "authorDisplayName", "authorChannelUrl", "au
 
 
 def load_secret(data_dir: Path) -> bytes:
-    """Returns SOCIALCOLLECT_SECRET, or a per-project secret kept in data_dir/.secret.
+    """Returns SMDC_SECRET, or a per-project secret kept in data_dir/.secret.
 
     The file is created on first use. Losing it changes every author key;
     sharing it makes the keys reversible for whoever holds the raw data.
     """
-    env = os.environ.get("SOCIALCOLLECT_SECRET", "").strip()
+    env = os.environ.get("SMDC_SECRET", "").strip()
     if env:
         return env.encode()
     path = data_dir / ".secret"

@@ -19,7 +19,7 @@ from . import __version__
 
 log = logging.getLogger(__name__)
 RETRY_STATUS = {429, 500, 502, 503, 504}
-USER_AGENT = f"socialcollect/{__version__} (academic research)"
+USER_AGENT = f"smdc/{__version__} (academic research)"
 
 
 class HttpError(Exception):

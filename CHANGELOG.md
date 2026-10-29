@@ -4,6 +4,23 @@ All notable changes to this project are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Breaking changes
+
+- Renamed Social Media Data Collector. The command and the package are now `smdc` (was
+  `socialcollect`), the environment variables `SMDC_DATA`, `SMDC_VENV` and `SMDC_SECRET`
+  (were `SOCIALCOLLECT_*`), the default folders `~/smdc-data` and `~/.venvs/smdc`, and the
+  database `smdc.sqlite`. To keep data collected with 2.0.0: rename `SOCIALCOLLECT_SECRET` to
+  `SMDC_SECRET` in `.env` if you set it (otherwise author keys change), move
+  `~/socialcollect-data` to `~/smdc-data` and rename `socialcollect.sqlite` in it to
+  `smdc.sqlite`. The launcher installs into `~/.venvs/smdc`; `~/.venvs/socialcollect` can be
+  deleted.
+
+### Added
+
+- MIT license.
+
 ## [2.0.0] - 2026-10-20
 
 A complete rewrite, named `socialcollect`. Topic-by-topic explanations of what changed since
@@ -73,5 +90,6 @@ The YouTube Data Collector by Kévin Campos-Moinier:
 comments and replies of a list of videos through the YouTube Data API v3, three orders, English
 filtering and an exclusion report.
 
+[Unreleased]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/compare/v2.0.0...HEAD
 [2.0.0]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0

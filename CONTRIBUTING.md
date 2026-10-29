@@ -1,7 +1,7 @@
 # Contributing
 
 Bug reports and pull requests are welcome. For a bug, open an issue with the command you ran,
-the error message, your system and `socialcollect --version`. **Never paste an API key, a
+the error message, your system and `smdc --version`. **Never paste an API key, a
 `.env` file or collected comments** into an issue: they are public.
 
 ## Development setup
@@ -28,5 +28,5 @@ The core uses only the standard library; keep it that way (optional features go 
   places).
 - Record user-visible changes under an *Unreleased* heading in `CHANGELOG.md`.
 - A release bumps `version` in `pyproject.toml` and `__version__` in
-  `src/socialcollect/__init__.py`, moves *Unreleased* to the new version in `CHANGELOG.md`,
+  `src/smdc/__init__.py`, moves *Unreleased* to the new version in `CHANGELOG.md`,
   updates `version` and `date-released` in `CITATION.cff`, and is tagged `vX.Y.Z`.

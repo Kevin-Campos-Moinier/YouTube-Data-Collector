@@ -92,7 +92,7 @@ def _build_detector(candidates: tuple[str, ...]):
             from lingua import IsoCode639_1, LanguageDetectorBuilder
         except ImportError as e:
             raise RuntimeError("language filtering needs lingua: pip install "
-                               "'socialcollect[lang]' (or set languages = [])") from e
+                               "'smdc[lang]' (or set languages = [])") from e
         codes = [getattr(IsoCode639_1, c.upper()) for c in candidates]
         _detectors[candidates] = LanguageDetectorBuilder.from_iso_codes_639_1(*codes).build()
     return _detectors[candidates]

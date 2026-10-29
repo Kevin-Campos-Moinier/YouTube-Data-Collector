@@ -1,5 +1,5 @@
-# A socialcollect run, described entirely in this file.
-# Copy it, edit it, then:   socialcollect estimate my-run.toml   and   socialcollect run my-run.toml
+# A smdc run, described entirely in this file.
+# Copy it, edit it, then:   smdc estimate my-run.toml   and   smdc run my-run.toml
 # The parsed settings are frozen into the database with the data, so every dataset can be
 # traced back to the exact parameters that produced it.
 

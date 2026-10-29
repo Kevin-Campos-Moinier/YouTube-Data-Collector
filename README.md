@@ -1,4 +1,4 @@
-# socialcollect
+# Social Media Data Collector (`smdc`)
 
 [![tests](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/actions/workflows/tests.yml/badge.svg)](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/actions/workflows/tests.yml)
 
@@ -81,12 +81,12 @@ synced folder (OneDrive, Dropbox, iCloud) gets corrupted. Each computer therefor
 
 | What | Default | Change it with |
 |---|---|---|
-| Python environment | `~/.venvs/socialcollect` (Windows: `C:\Users\<you>\.venvs\socialcollect`) | `SOCIALCOLLECT_VENV` |
-| Runs, database, exports | `~/socialcollect-data` (Windows: `C:\Users\<you>\socialcollect-data`) | `SOCIALCOLLECT_DATA`, or `--data` |
+| Python environment | `~/.venvs/smdc` (Windows: `C:\Users\<you>\.venvs\smdc`) | `SMDC_VENV` |
+| Runs, database, exports | `~/smdc-data` (Windows: `C:\Users\<you>\smdc-data`) | `SMDC_DATA`, or `--data` |
 
 Each data folder holds its own pseudonymization secret (`.secret`), so the same commenter gets
 different author keys on different computers. To get identical keys everywhere, put the same
-`SOCIALCOLLECT_SECRET=<long random string>` in `.env` on every computer **before** the first
+`SMDC_SECRET=<long random string>` in `.env` on every computer **before** the first
 collection.
 
 **If something goes wrong.**
@@ -101,25 +101,25 @@ The launcher is a convenience. By hand, from this folder:
 
 ```bash
 # macOS / Linux
-python3 -m venv ~/.venvs/socialcollect
-~/.venvs/socialcollect/bin/pip install -e ".[all]"
-~/.venvs/socialcollect/bin/socialcollect dashboard
+python3 -m venv ~/.venvs/smdc
+~/.venvs/smdc/bin/pip install -e ".[all]"
+~/.venvs/smdc/bin/smdc dashboard
 ```
 
 ```powershell
 # Windows (PowerShell)
-py -m venv $HOME\.venvs\socialcollect
-& $HOME\.venvs\socialcollect\Scripts\pip.exe install -e ".[all]"
-& $HOME\.venvs\socialcollect\Scripts\socialcollect.exe dashboard
+py -m venv $HOME\.venvs\smdc
+& $HOME\.venvs\smdc\Scripts\pip.exe install -e ".[all]"
+& $HOME\.venvs\smdc\Scripts\smdc.exe dashboard
 ```
 
 `[all]` adds language detection and Parquet export. Activate the environment
-(`source ~/.venvs/socialcollect/bin/activate`, or `$HOME\.venvs\socialcollect\Scripts\Activate.ps1`)
-to type plain `socialcollect …` afterwards.
+(`source ~/.venvs/smdc/bin/activate`, or `$HOME\.venvs\smdc\Scripts\Activate.ps1`)
+to type plain `smdc …` afterwards.
 
 ## Use it: the dashboard
 
-Start it with the launcher (above) or `socialcollect dashboard`. It only listens on your own
+Start it with the launcher (above) or `smdc dashboard`. It only listens on your own
 computer (127.0.0.1).
 
 1. **New run**: paste video URLs (or `channel:@name`, `playlist:…`), choose the order, the number
@@ -149,17 +149,17 @@ repeated from the command line.
 
 ```bash
 cp config.example.toml my-run.toml       # edit it: every option is commented
-socialcollect estimate my-run.toml       # check videos and cost (≈1 unit per 50 videos)
-socialcollect run my-run.toml            # collect; add --wait to span several days
-socialcollect status [NAME]              # runs, per-video progress, filtering report, coverage
-socialcollect resume NAME [--wait]       # continue a paused or incomplete run
-socialcollect refresh NAME [--wait]      # new snapshot of the same videos
-socialcollect process NAME --config other.toml   # redo text processing with other [process] settings
-socialcollect export NAME [--format csv|jsonl|parquet] [--kept] [--excel] [--snapshot N]
+smdc estimate my-run.toml       # check videos and cost (≈1 unit per 50 videos)
+smdc run my-run.toml            # collect; add --wait to span several days
+smdc status [NAME]              # runs, per-video progress, filtering report, coverage
+smdc resume NAME [--wait]       # continue a paused or incomplete run
+smdc refresh NAME [--wait]      # new snapshot of the same videos
+smdc process NAME --config other.toml   # redo text processing with other [process] settings
+smdc export NAME [--format csv|jsonl|parquet] [--kept] [--excel] [--snapshot N]
 ```
 
-Everything lives in the data folder (`~/socialcollect-data` unless `SOCIALCOLLECT_DATA` or
-`--data DIR` says otherwise): the database `socialcollect.sqlite`, the pseudonymization secret
+Everything lives in the data folder (`~/smdc-data` unless `SMDC_DATA` or
+`--data DIR` says otherwise): the database `smdc.sqlite`, the pseudonymization secret
 `.secret`, run files and exports.
 
 ## Concepts
@@ -195,7 +195,7 @@ to get around the limit: the YouTube API Terms forbid it.
 
 ## Outputs
 
-`socialcollect export NAME` writes `exports/NAME/` in the data folder (or `NAME-s2/` for snapshot 2):
+`smdc export NAME` writes `exports/NAME/` in the data folder (or `NAME-s2/` for snapshot 2):
 
 | File | Contents |
 |---|---|
@@ -210,7 +210,7 @@ to get around the limit: the YouTube API Terms forbid it.
 
 - **Pseudonymization is not anonymization.** Comment text can identify people (quotes are
   searchable). Store data on institutional storage, and quote paraphrased text in publications.
-- **The secret** (`.secret` in the data folder, or `SOCIALCOLLECT_SECRET`) links author keys back to accounts
+- **The secret** (`.secret` in the data folder, or `SMDC_SECRET`) links author keys back to accounts
   for whoever also has the raw API data. Share it only with people allowed to re-identify.
   Losing it changes every author key in future runs.
 - **30-day rule:** the YouTube API Services Developer Policies ask that stored API data be
@@ -218,10 +218,10 @@ to get around the limit: the YouTube API Terms forbid it.
   renews a run.
 - **The database is personal data.** Exports are pseudonymized, but the database keeps each
   comment's text exactly as returned (with `@handles`) so that it can be reprocessed. Share
-  exports, not `socialcollect.sqlite`. Raw API responses are stored without commenter
+  exports, not `smdc.sqlite`. Raw API responses are stored without commenter
   identifiers unless `keep_identifiers = true`. On a shared computer, the data folder is
   created readable by you only; a folder from an older version can be closed with
-  `chmod 700 ~/socialcollect-data`.
+  `chmod 700 ~/smdc-data`.
 - **Opening exports in Excel:** use `--excel` (or tick *Excel*). Besides the French-Excel
   format, it neutralizes comments that start with `=`, `+`, `-` or `@`, which Excel would
   otherwise run as formulas (a comment can be written to do that). The plain CSV keeps the
@@ -239,8 +239,8 @@ store.
 
 ```
 dashboard.bat / dashboard.command / dashboard.sh   double-click launchers (call launch.py)
-launch.py       first-run install into ~/.venvs/socialcollect, .env setup, starts the dashboard
-src/socialcollect/
+launch.py       first-run install into ~/.venvs/smdc, .env setup, starts the dashboard
+src/smdc/
   cli.py          command line
   config.py       the run file: dataclasses, validation, TOML
   model.py        Container, Item, Page, Estimate — platform-neutral records
@@ -285,7 +285,8 @@ pytest                      # offline: an in-memory fake of the YouTube API, no 
 - **Version 1** (2026), the YouTube Data Collector, was written by Kévin Campos-Moinier. It
   stays available unchanged as the
   [`v1.0.0` tag](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0).
-- **Version 2** (`socialcollect`) is a complete rewrite by Loïc Miller. It keeps version 1's
+- **Version 2** is a complete rewrite by Loïc Miller, released as `socialcollect` 2.0.0 and
+  then renamed Social Media Data Collector (`smdc`). It keeps version 1's
   design choices (official API, quota handling, exclusion report) and its short-English word
   list, and adds everything listed in [CHANGELOG.md](CHANGELOG.md).
 
@@ -293,3 +294,7 @@ pytest                      # offline: an in-memory fake of the YouTube API, no 
 
 GitHub's *Cite this repository* button (from [CITATION.cff](CITATION.cff)) gives a ready-made
 reference. Cite the version you used: each release has its own tag.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

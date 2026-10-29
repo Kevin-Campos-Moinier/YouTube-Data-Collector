@@ -4,7 +4,7 @@
 
 Please do **not** describe a security problem in a public issue. Open an issue titled
 "Security contact" without any detail, and a maintainer will get in touch to receive the report
-privately. Say which version you use (`socialcollect --version`).
+privately. Say which version you use (`smdc --version`).
 
 Never include an API key, a `.env` file, a database or collected comments in a report.
 

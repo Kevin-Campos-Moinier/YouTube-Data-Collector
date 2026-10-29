@@ -6,9 +6,9 @@ import urllib.error
 
 import pytest
 
-from socialcollect import config, export, net, text
-from socialcollect.privacy import load_secret, pseudonymize, redact_mentions
-from socialcollect.sources.youtube import parse_video_id
+from smdc import config, export, net, text
+from smdc.privacy import load_secret, pseudonymize, redact_mentions
+from smdc.sources.youtube import parse_video_id
 
 
 def test_non_latin_scripts_survive_emoji_removal():
@@ -124,7 +124,7 @@ def test_excel_csv_defuses_formulas(tmp_path):
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permissions")
 def test_secret_and_data_folder_are_private(tmp_path, monkeypatch):
-    monkeypatch.delenv("SOCIALCOLLECT_SECRET", raising=False)
+    monkeypatch.delenv("SMDC_SECRET", raising=False)
     load_secret(tmp_path / "data")
     assert (tmp_path / "data").stat().st_mode & 0o077 == 0
     assert (tmp_path / "data" / ".secret").stat().st_mode & 0o077 == 0

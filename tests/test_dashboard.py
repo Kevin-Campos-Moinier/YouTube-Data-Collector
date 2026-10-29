@@ -8,11 +8,11 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from fakeyt import FakeYouTube, make_video
-from socialcollect import pipeline
-from socialcollect.budget import Budget
-from socialcollect.dashboard import server
-from socialcollect.sources.youtube import YouTubeSource
-from socialcollect.store import Store
+from smdc import pipeline
+from smdc.budget import Budget
+from smdc.dashboard import server
+from smdc.sources.youtube import YouTubeSource
+from smdc.store import Store
 
 
 class Ctx:
@@ -77,7 +77,7 @@ def test_http_refuses_cross_origin_posts(api):
     url = f"http://127.0.0.1:{srv.server_port}"
     try:
         page = urllib.request.urlopen(url + "/")
-        assert b"socialcollect" in page.read() and page.headers["X-Frame-Options"] == "DENY"
+        assert b"Social Media Data Collector" in page.read() and page.headers["X-Frame-Options"] == "DENY"
         state = json.loads(urllib.request.urlopen(url + "/api/state").read())
         assert state["job"]["busy"] is False
         req = urllib.request.Request(url + "/api/pause", data=b"{}", method="POST",

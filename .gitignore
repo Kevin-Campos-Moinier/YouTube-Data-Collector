@@ -1,7 +1,7 @@
 # secrets
 .env
 .secret
-# data: lives in ~/socialcollect-data, never in the code folder
+# data: lives in ~/smdc-data, never in the code folder
 data/
 exports/
 runs/

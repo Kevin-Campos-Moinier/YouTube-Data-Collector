@@ -1,13 +1,15 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "socialcollect"
+name = "smdc"
 version = "2.0.0"
 description = "Reproducible, quota-aware collection of social media comments (YouTube Data API v3)"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Loïc Miller" }]
 keywords = ["youtube", "comments", "data-collection", "social-media", "research"]
 classifiers = [
@@ -31,13 +33,13 @@ Issues = "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/issues"
 Changelog = "https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/blob/main/CHANGELOG.md"
 
 [project.scripts]
-socialcollect = "socialcollect.cli:main"
+smdc = "smdc.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"socialcollect.dashboard" = ["*.html"]
+"smdc.dashboard" = ["*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,4 +1,4 @@
-"""Allows `python -m socialcollect`."""
+"""Allows `python -m smdc`."""
 
 import sys
 

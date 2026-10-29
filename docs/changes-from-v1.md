@@ -14,7 +14,7 @@ the daily quota ran out mid-collection, the program stopped and the data collect
 lost, which was more likely the larger the study.
 
 **Version 2** commits every page of comments to a SQLite database together with a checkpoint
-(the API page token). Hitting the quota pauses the run; `socialcollect resume NAME` (or the
+(the API page token). Hitting the quota pauses the run; `smdc resume NAME` (or the
 dashboard's *Resume*) continues from the last page after the reset, and `--wait` does it
 automatically (the quota resets at midnight Pacific time).
 
@@ -47,7 +47,7 @@ and cleaning could not be redone differently.
 **Version 2** stores the text exactly as returned and adds the processed versions as columns:
 `text` (the comment on one line), `text_clean` (emojis and punctuation removed), `lang`,
 `lang_conf` and `excluded_reason`. Processing can be rerun with other settings
-(`socialcollect process`) without spending quota.
+(`smdc process`) without spending quota.
 
 ## Replies get the same processing
 
@@ -131,7 +131,7 @@ could publish, and had to be run from the repository root.
 
 **Version 2** reads the key from the environment or from a `.env` file that git ignores; the key
 is never logged or stored, and error messages never contain the request URL. It installs as a
-package with a `socialcollect` command, and double-click launchers set everything up on
+package with a `smdc` command, and double-click launchers set everything up on
 Windows, macOS and Linux.
 
 ## Targets
@@ -178,6 +178,6 @@ filter off.
 | `collect_youtube_comments` | `pipeline.Job` (checkpointed, parallel, pause/resume) |
 | `read_video_ids` (`video_ids.txt`) | `targets` in the TOML (IDs, URLs, channels, playlists, searches) |
 | `get_user_input` (prompts) | TOML file, or the dashboard's form (which writes the TOML) |
-| CSV `data/<name>.csv` (`;`, BOM) | `socialcollect export`: CSV (`--excel` for `;` + BOM), JSONL or Parquet, plus report, manifest and codebook |
+| CSV `data/<name>.csv` (`;`, BOM) | `smdc export`: CSV (`--excel` for `;` + BOM), JSONL or Parquet, plus report, manifest and codebook |
 | `tqdm` progress bar | CLI log + dashboard progress, quota gauge and reset countdown |
 | (none) | video metadata, pseudonymization, snapshots and removed-comment detection, cost estimate, channel/playlist targets |

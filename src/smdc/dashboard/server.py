@@ -303,7 +303,7 @@ def serve(ctx, port: int = 8777, open_browser: bool = True) -> None:
     api = Api(ctx)
     srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(api))
     url = f"http://127.0.0.1:{port}"
-    print(f"socialcollect dashboard on {url}  (data: {ctx.data}; Ctrl-C to stop)")
+    print(f"smdc dashboard on {url}  (data: {ctx.data}; Ctrl-C to stop)")
     if open_browser:
         webbrowser.open(url)
     try:
