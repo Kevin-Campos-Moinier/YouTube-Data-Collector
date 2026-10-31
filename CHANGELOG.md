@@ -6,6 +6,13 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- The `.env` holding the API key now lives in the user's configuration folder
+  (`~/.config/smdc/.env`, Windows `%APPDATA%\smdc\.env`, or `SMDC_ENV`), not in the code folder,
+  which is often synced or shared. The launcher creates it there; a `.env` in the working folder
+  is still read, so existing setups keep working.
+
 ### Breaking changes
 
 - Renamed Social Media Data Collector. The command and the package are now `smdc` (was

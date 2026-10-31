@@ -128,3 +128,24 @@ def test_secret_and_data_folder_are_private(tmp_path, monkeypatch):
     load_secret(tmp_path / "data")
     assert (tmp_path / "data").stat().st_mode & 0o077 == 0
     assert (tmp_path / "data" / ".secret").stat().st_mode & 0o077 == 0
+
+
+def test_user_env_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("SMDC_ENV", str(tmp_path / "k.env"))
+    assert config.user_env_path() == tmp_path / "k.env"
+    monkeypatch.delenv("SMDC_ENV")
+    monkeypatch.setattr(os, "name", "posix")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    assert config.user_env_path() == tmp_path / "cfg" / "smdc" / ".env"
+
+
+def test_load_dotenv_first_file_wins(monkeypatch, tmp_path):
+    user, old = tmp_path / "user.env", tmp_path / "old.env"
+    old.write_text("YOUTUBE_API_KEY=old\n")
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    config.load_dotenv(user, old)               # no user file yet: the old one is read
+    assert os.environ["YOUTUBE_API_KEY"] == "old"
+    monkeypatch.delenv("YOUTUBE_API_KEY")
+    user.write_text("YOUTUBE_API_KEY=new\n")
+    config.load_dotenv(user, old)
+    assert os.environ["YOUTUBE_API_KEY"] == "new"

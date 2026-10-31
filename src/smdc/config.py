@@ -157,6 +157,20 @@ def dump_toml(cfg: Config) -> str:
     return "\n".join(out) + "\n"
 
 
+def user_env_path() -> Path:
+    """Where the API key's .env lives by default: the user's config folder, outside any synced or
+    shared code folder. `SMDC_ENV` overrides it.
+
+    Returns:
+        %APPDATA%\\smdc\\.env on Windows, $XDG_CONFIG_HOME/smdc/.env (default ~/.config/smdc/.env) elsewhere.
+    """
+    if os.environ.get("SMDC_ENV"):
+        return Path(os.environ["SMDC_ENV"]).expanduser()
+    if os.name == "nt" and os.environ.get("APPDATA"):
+        return Path(os.environ["APPDATA"]) / "smdc" / ".env"
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "smdc" / ".env"
+
+
 def load_dotenv(*paths: Path) -> None:
     """Loads KEY=VALUE lines from the first existing .env into os.environ.
 

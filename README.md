@@ -66,14 +66,15 @@ Keep the key to yourself: each person uses their own.
 | Linux | run **`./dashboard.sh`** in a terminal from this folder |
 
 The first launch creates a Python environment and installs the dependencies (a few minutes).
-It then creates a file named `.env` in this folder and opens it: paste your key after
+It then creates a file named `.env` in your user configuration folder and opens it: paste your key after
 `YOUTUBE_API_KEY=`, save, and launch again. From then on, the launcher opens the dashboard in
 your browser at <http://127.0.0.1:8777>. Keep the terminal window open while you use it; closing
 it (or Ctrl-C) stops the dashboard and pauses any running collection, which *Resume* continues
 later.
 
-`.env` is never committed to git. It is still a file in this folder, though, so don't send the
-folder around with your `.env` inside.
+The `.env` lives outside this folder (see the table below), so the key never travels with the code,
+even when the folder is synced or shared. A `.env` left in this folder by an older version still works,
+but moving it to the configuration folder is safer. It is readable by its owner only, and never committed to git.
 
 **Where things go.** Both locations are outside the code folder on purpose. An environment
 breaks when its folder is synced or moved. A database that two computers write to through a
@@ -83,6 +84,7 @@ synced folder (OneDrive, Dropbox, iCloud) gets corrupted. Each computer therefor
 |---|---|---|
 | Python environment | `~/.venvs/smdc` (Windows: `C:\Users\<you>\.venvs\smdc`) | `SMDC_VENV` |
 | Runs, database, exports | `~/smdc-data` (Windows: `C:\Users\<you>\smdc-data`) | `SMDC_DATA`, or `--data` |
+| API key and secret (`.env`) | `~/.config/smdc/.env` (Windows: `%APPDATA%\smdc\.env`) | `SMDC_ENV` |
 
 Each data folder holds its own pseudonymization secret (`.secret`), so the same commenter gets
 different author keys on different computers. To get identical keys everywhere, put the same
@@ -239,7 +241,7 @@ store.
 
 ```
 dashboard.bat / dashboard.command / dashboard.sh   double-click launchers (call launch.py)
-launch.py       first-run install into ~/.venvs/smdc, .env setup, starts the dashboard
+launch.py       first-run install into ~/.venvs/smdc, .env setup (user config folder), starts the dashboard
 src/smdc/
   cli.py          command line
   config.py       the run file: dataclasses, validation, TOML

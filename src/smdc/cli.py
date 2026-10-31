@@ -38,7 +38,8 @@ class Ctx:
     def __init__(self, data_dir: Path):
         self.data = data_dir.resolve()
         self.data.mkdir(mode=0o700, parents=True, exist_ok=True)  # personal data: owner only
-        config.load_dotenv(Path.cwd() / ".env", self.data.parent / ".env")
+        # the user's config folder first; a .env in the working folder still works (versions up to 2.0.0)
+        config.load_dotenv(config.user_env_path(), Path.cwd() / ".env", self.data.parent / ".env")
         self.store = Store(self.data / "smdc.sqlite")
 
     def secret(self) -> bytes:
