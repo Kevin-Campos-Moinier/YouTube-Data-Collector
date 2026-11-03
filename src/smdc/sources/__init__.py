@@ -1,5 +1,6 @@
 """Registry of platform sources."""
 
+import functools
 import os
 
 from .. import config, net
@@ -36,7 +37,8 @@ def check_key(name: str, key: str, budget: Budget) -> None:
     """
     if name == "youtube":
         from .youtube import YouTubeSource
-        return YouTubeSource(key, budget).check_key()
+        # someone is waiting at the button: one quick retry, not the patient ones of a collection
+        return YouTubeSource(key, budget, get=functools.partial(net.get_json, retries=1, timeout=15)).check_key()
     raise KeyError(f"unknown source {name!r} (available: {', '.join(SOURCES)})")
 
 
