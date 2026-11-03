@@ -39,7 +39,7 @@ smdc = "smdc.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"smdc.dashboard" = ["*.html"]
+"smdc.dashboard" = ["*.html", "ui/*", "ui/fonts/*", "ui/licenses/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

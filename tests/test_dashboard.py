@@ -80,6 +80,13 @@ def test_http_refuses_cross_origin_posts(api):
         assert b"Social Media Data Collector" in page.read() and page.headers["X-Frame-Options"] == "DENY"
         state = json.loads(urllib.request.urlopen(url + "/api/state").read())
         assert state["job"]["busy"] is False
+        theme = urllib.request.urlopen(url + "/ui/theme.css")
+        assert theme.headers["Content-Type"].startswith("text/css") and b"--tool" in theme.read()
+        assert urllib.request.urlopen(url + "/ui/fonts/newsreader.woff2").headers["Content-Type"] == "font/woff2"
+        for path in ("/ui/../server.py", "/ui/%2e%2e/server.py", "/ui/..%2fserver.py", "/ui/", "/ui/nothing.css"):
+            with pytest.raises(urllib.error.HTTPError) as e:  # the kit's folder only
+                urllib.request.urlopen(url + path)
+            assert e.value.code == 404, path
         req = urllib.request.Request(url + "/api/pause", data=b"{}", method="POST",
                                      headers={"Origin": "http://evil.example"})
         with pytest.raises(urllib.error.HTTPError) as e:

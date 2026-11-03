@@ -256,7 +256,7 @@ src/smdc/
   text.py         normalization, cleaning, language detection, exclusion reasons
   privacy.py      pseudonymization and @mention masking
   export.py       CSV/JSONL/Parquet, report, manifest, codebook
-  dashboard/      local web UI (stdlib server + one HTML page)
+  dashboard/      local web UI (stdlib server, one HTML page, its stylesheet, fonts and icons in ui/)
 ```
 
 **Adding a platform** (e.g. Reddit): write `sources/reddit.py` with a class implementing the
@@ -300,3 +300,7 @@ reference. Cite the version you used: each release has its own tag.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The dashboard's fonts and icons are not under MIT and keep their own licences, included in
+[`src/smdc/dashboard/ui/licenses/`](src/smdc/dashboard/ui/licenses/): Newsreader and Public Sans (latin subsets) under the
+SIL Open Font License 1.1, Lucide icons under ISC.

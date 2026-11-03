@@ -13,7 +13,8 @@ Never include an API key, a `.env` file, a database or collected comments in a r
 - **API key**: read from the environment or a git-ignored `.env` (created readable by its owner
   only); sent in a request header, never in a URL; never logged, stored in the database or included in error messages.
 - **Dashboard**: listens on 127.0.0.1 only, refuses requests addressed to any other host name
-  (DNS rebinding) and cross-origin `POST`s, and cannot be framed by another site.
+  (DNS rebinding) and cross-origin `POST`s, and cannot be framed by another site. It loads nothing
+  from outside: its stylesheet, fonts and icons are served from the package's own `ui/` folder.
 - **Collected data**: the data folder is created readable by its owner only. Commenters are
   pseudonymized with a keyed hash whose secret stays in that folder; raw API responses are
   stored without commenter identifiers unless `keep_identifiers = true`.

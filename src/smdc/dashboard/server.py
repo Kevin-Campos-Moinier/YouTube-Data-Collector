@@ -21,6 +21,9 @@ from ..export import export
 from ..sources import get_source
 
 PAGE = Path(__file__).with_name("index.html")
+# The page's stylesheet, fonts and icons: only these types, and only from this folder.
+UI = PAGE.with_name("ui")
+UI_TYPES = {".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8"}
 # A page from another site can point its own domain at 127.0.0.1 (DNS rebinding) and then
 # read the API as same-origin; such requests carry that domain in Host, so they are refused.
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
@@ -279,6 +282,11 @@ def make_handler(api: Api):
             u = urllib.parse.urlparse(self.path)
             if u.path == "/":
                 return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+            if u.path.startswith("/ui/"):
+                f = (UI / urllib.parse.unquote(u.path.removeprefix("/ui/"))).resolve()
+                if f.is_relative_to(UI.resolve()) and f.is_file() and f.suffix in UI_TYPES:
+                    return self._send(200, f.read_bytes(), UI_TYPES[f.suffix])
+                return self._send(404, b"not found", "text/plain")
             fn = getattr(api, "get_" + u.path.removeprefix("/api/"), None)
             if not u.path.startswith("/api/") or fn is None:
                 return self._send(404, b"not found", "text/plain")

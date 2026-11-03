@@ -24,6 +24,8 @@ The core uses only the standard library; keep it that way (optional features go 
 
 ## Rules
 
+- `src/smdc/dashboard/ui/` holds the dashboard's stylesheet, fonts and icons; the page's own layout is in
+  `src/smdc/dashboard/index.html`. The fonts and icons keep their own licences (see the README's License section).
 - No API key, `.env`, database or collected data in a commit (`.gitignore` covers the usual
   places).
 - Record user-visible changes under an *Unreleased* heading in `CHANGELOG.md`.

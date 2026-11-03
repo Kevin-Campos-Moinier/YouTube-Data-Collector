@@ -6,6 +6,16 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- New look for the dashboard: fonts and icons served locally (nothing loaded from outside), light, dark and system
+  themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
+
+### Fixed
+
+- The dashboard could keep showing a run as "running", with the wrong buttons, after it was paused or finished between
+  two refreshes of the page.
+
 ### Security
 
 - The `.env` holding the API key now lives in the user's configuration folder

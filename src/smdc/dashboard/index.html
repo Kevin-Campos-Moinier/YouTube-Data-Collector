@@ -1,73 +1,50 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-tool="smdc">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Social Media Data Collector</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/ui/theme.css">
 <style>
+/* The page's layout; colours, fonts and shared components come from ui/theme.css. */
 :root {
-  color-scheme: light;
-  --bg: #f6f6f4; --surface: #fcfcfb; --surface-2: #f0efec; --line: #e4e3df;
-  --text: #0b0b0b; --text-2: #52514e; --muted: #7a7973;
-  --accent: #2a78d6; --accent-track: #cde2fb; --accent-ink: #1c5cab;
-  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
-  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --other: #a3a29c;
+  --bg: var(--page); --line: var(--border); --text: var(--ink); --text-2: var(--ink-2);
+  --accent-ink: var(--accent); --serious: var(--warning); --other: var(--dim-bar);
 }
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #383835;
-    --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86;
-    --accent: #3987e5; --accent-track: #184f95; --accent-ink: #86b6ef;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
-    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a64;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --line: #383835;
-  --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e86;
-  --accent: #3987e5; --accent-track: #184f95; --accent-ink: #86b6ef;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
-  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --other: #6b6a64;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-header { display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-  padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line); }
-header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-nav { display: flex; gap: 4px; }
-nav button { background: none; border: 0; padding: 6px 12px; border-radius: 6px;
-  color: var(--text-2); font: inherit; cursor: pointer; }
-nav button.on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+a { color: var(--accent-ink); }
+.ui-tabs { flex: 0 1 auto; }
 .quota { margin-left: auto; min-width: 260px; }
 .quota .lbl { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); }
-.meter { height: 8px; border-radius: 4px; background: var(--accent-track); overflow: hidden; }
-.meter > i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.meter { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.meter > i { display: block; height: 100%; background: var(--tool); border-radius: 999px; }
 .meter.warn > i { background: var(--serious); }
 .meter.full > i { background: var(--critical); }
-main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  padding: 16px 18px; margin-bottom: 16px; }
-.card h2 { font-size: 15px; margin: 0 0 12px; }
-.card h3 { font-size: 13px; margin: 14px 0 8px; color: var(--text-2); font-weight: 600; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; }
+main { max-width: 1240px; margin: 0 auto; padding: 8px 28px 60px; }
+h1 { font-size: 30px; font-weight: 500; margin: 4px 0; }
+.lede { color: var(--text-2); margin: 0 0 12px; max-width: 75ch; }
+main section > .ui-strip { margin-bottom: 16px; }
+.card .ui-strip { background: var(--surface-2); box-shadow: none; margin: 12px 0; }
+.card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 16px 18px; margin-bottom: 16px; min-width: 0; }
+.card h2 { font-size: 21px; margin: 0 0 12px; }
+.card h3 { font-size: 15px; margin: 14px 0 8px; font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px 18px; }
 label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 3px; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
 input[type=text], input[type=number], input[type=date], select, textarea {
-  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px;
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--bg); color: var(--text); font: inherit; }
-textarea { min-height: 110px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+textarea { min-height: 110px; font-family: var(--font-mono); font-size: 13px; }
 .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); margin: 4px 0; }
 .check input { margin: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips label { display: inline-flex; gap: 4px; align-items: center; margin: 0; padding: 3px 8px;
-  border: 1px solid var(--line); border-radius: 12px; color: var(--text); cursor: pointer; }
-button.btn { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line);
-  background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
-button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  background: var(--surface-2); border-radius: 999px; color: var(--text); cursor: pointer; }
+button.btn { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--tool); font: inherit; font-weight: 500; cursor: pointer; }
+button.btn:hover { background: var(--tool-soft); }
+button.btn.primary { background: var(--tool); border-color: var(--tool); color: var(--surface); font-weight: 600; }
 button.btn:disabled { opacity: .5; cursor: default; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .err { color: var(--critical); white-space: pre-wrap; }
@@ -77,26 +54,22 @@ th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align:
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); }
 .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 1px 8px;
-  border-radius: 10px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+  border-radius: 999px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
 .pill.good::before { background: var(--good); } .pill.warning::before { background: var(--warning); }
 .pill.serious::before { background: var(--serious); } .pill.critical::before { background: var(--critical); }
-.pill.running::before { background: var(--accent); }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.tile .k { font-size: 12px; color: var(--text-2); } .tile .v { font-size: 22px; font-weight: 600; }
+.pill.running::before { background: var(--tool); }
 .bars .b { display: grid; grid-template-columns: 170px 1fr 70px; gap: 8px; align-items: center; margin: 5px 0; }
-.bars .b .t { height: 14px; background: var(--surface-2); border-radius: 0 4px 4px 0; }
-.bars .b .t i { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .b .t { height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; }
+.bars .b .t i { display: block; height: 100%; background: var(--tool); border-radius: 999px; min-width: 2px; }
 .bars .b .t i.x { background: var(--other); }
-.stack { display: flex; gap: 2px; height: 22px; margin: 10px 0 6px; }
+.stack { display: flex; gap: 2px; height: 14px; margin: 10px 0 6px; border-radius: 999px; overflow: hidden; }
 .stack i { display: block; height: 100%; min-width: 2px; }
-.stack i:first-child { border-radius: 4px 0 0 4px; } .stack i:last-child { border-radius: 0 4px 4px 0; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-.hero { font-size: 48px; font-weight: 600; line-height: 1.1; }
 .quota { cursor: pointer; }
 .bars .b span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
-.log { font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; max-height: 220px; overflow: auto;
-  background: var(--bg); padding: 8px; border-radius: 6px; }
+.log { font: 12px/1.5 var(--font-mono); max-height: 220px; overflow: auto;
+  background: var(--bg); padding: 8px; border-radius: var(--radius-sm); }
 .log .warning { color: var(--serious); } .log .error { color: var(--critical); }
 .txt { max-width: 560px; overflow-wrap: anywhere; }
 .muted { color: var(--muted); }
@@ -108,38 +81,41 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
 .chart .axis text { fill: var(--muted); font-size: 11px; }
 .chart .grid line { stroke: var(--line); stroke-width: 1; }
 .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
-  border-radius: 6px; padding: 6px 9px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  border-radius: var(--radius-sm); padding: 6px 9px; font-size: 12px; box-shadow: var(--shadow);
   display: none; white-space: nowrap; z-index: 2; }
 .tip .r { display: flex; gap: 6px; align-items: center; }
 .tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .hidden { display: none !important; }
 @media (max-width: 640px) {
-  header { padding: 10px 16px; } .quota { min-width: 100%; }
+  main { padding: 8px 16px 40px; } .quota { min-width: 100%; }
   .bars .b { grid-template-columns: 110px 1fr 50px; }
   table { display: block; overflow-x: auto; }
   td.txt { min-width: 220px; } th, td { min-width: 64px; }
 }
-a { color: var(--accent-ink); }
 </style>
 </head>
 <body>
-<header>
-  <h1>Social Media Data Collector</h1>
-  <nav>
-    <button data-view="new" class="on">New run</button>
-    <button data-view="runs">Runs</button>
-    <button data-view="quota">Quota</button>
-    <button data-view="detail" id="nav-detail" class="hidden"></button>
+<header class="ui-header">
+  <a class="ui-brand" href="#new" data-view="new"><span class="ui-chip-tool"><svg class="ui-icon" aria-hidden="true"><use href="/ui/icons.svg#users"></use></svg></span>Social Media Data Collector</a>
+  <nav class="ui-tabs" aria-label="Views">
+    <a href="#new" data-view="new" class="on">New run</a>
+    <a href="#runs" data-view="runs">Runs</a>
+    <a href="#quota" data-view="quota">Quota</a>
+    <a href="#" data-view="detail" id="nav-detail" class="hidden"></a>
   </nav>
   <div class="quota" title="Units spent by this tool today (other uses of the same key are not counted)">
     <div class="lbl"><span id="q-text">quota</span><span id="q-reset"></span></div>
     <div class="meter" id="q-meter"><i style="width:0"></i></div>
   </div>
+  <button id="theme" class="ui-round" type="button" aria-label="Light, dark or system theme"><svg class="ui-icon" aria-hidden="true"><use href="/ui/icons.svg#sun-moon"></use></svg></button>
 </header>
 
 <main>
 <!-- NEW RUN -->
 <section id="view-new">
+  <h1>New run</h1>
+  <p class="lede">Say what to collect, check the videos and what it will cost, then start. Nothing is spent on comments before you start, and a run can be paused and resumed.</p>
+  <section class="ui-strip" id="new-strip" aria-label="In brief"></section>
   <div class="card">
     <h2>1. What to collect</h2>
     <div class="grid">
@@ -202,15 +178,13 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
 
 <!-- RUNS -->
 <section id="view-quota" class="hidden">
+  <h1>Quota</h1>
+  <p class="lede">What this tool has spent of your key's daily quota, on what, and over the last two weeks.</p>
+  <section class="ui-strip" id="qv-strip" aria-label="In brief"></section>
   <div class="card">
-    <h2>Quota today</h2>
-    <div class="row" style="align-items:flex-end;gap:28px">
-      <div><div class="hero" id="qv-left"></div><div class="muted">units left today</div></div>
-      <div style="flex:1;min-width:240px">
-        <div class="meter" id="qv-meter" style="height:12px;border-radius:6px"><i style="width:0"></i></div>
-        <div class="hint" id="qv-text"></div>
-      </div>
-    </div>
+    <h2>Today</h2>
+    <div class="meter" id="qv-meter"><i style="width:0"></i></div>
+    <div class="hint" id="qv-text"></div>
     <p class="hint" id="qv-note"></p>
   </div>
   <div class="grid">
@@ -221,23 +195,25 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
 </section>
 
 <section id="view-runs" class="hidden">
-  <div class="card"><h2>Runs</h2><div id="runs-table"></div></div>
+  <h1>Runs</h1>
+  <p class="lede">Every collection so far, with its latest snapshot. Open one to watch it, explore its comments and export them.</p>
+  <section class="ui-strip" id="runs-strip" aria-label="In brief"></section>
+  <div class="card"><h2>All runs</h2><div id="runs-table"></div></div>
 </section>
 
 <!-- RUN DETAIL -->
 <section id="view-detail" class="hidden">
+  <div class="row"><h1 id="d-name"></h1><span id="d-status"></span>
+    <select id="d-seq" class="hidden" style="width:auto"></select></div>
+  <p class="lede" id="d-msg"></p>
+  <section class="ui-strip" id="d-strip" aria-label="In brief"></section>
   <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <div class="row"><h2 style="margin:0" id="d-name"></h2><span id="d-status"></span>
-        <select id="d-seq" class="hidden" style="width:auto"></select></div>
-      <div class="row">
-        <button class="btn" id="b-pause">Pause</button>
-        <button class="btn" id="b-resume">Resume</button>
-        <label class="check"><input type="checkbox" id="d-wait"> continue after quota reset</label>
-        <button class="btn" id="b-refresh" title="Collect the same videos again as a new snapshot">Refresh snapshot</button>
-      </div>
+    <div class="row">
+      <button class="btn" id="b-pause">Pause</button>
+      <button class="btn" id="b-resume">Resume</button>
+      <label class="check"><input type="checkbox" id="d-wait"> continue after quota reset</label>
+      <button class="btn" id="b-refresh" title="Collect the same videos again as a new snapshot">Refresh snapshot</button>
     </div>
-    <div id="d-msg" class="hint"></div>
     <div id="d-err" class="err"></div>
   </div>
 
@@ -310,10 +286,12 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<
 const fmt = (n) => n == null ? "—" : Number(n).toLocaleString("en-US");
 const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+// One figure of a strip of figures (.ui-strip in ui/theme.css).
+const stat = (label, value, note) => `<div><span class="l">${esc(label)}</span><span class="v">${esc(value)}</span>${note ? `<span class="s">${esc(note)}</span>` : ""}</div>`;
 const REASONS = {kept: "kept", other_language: "other language", undetected: "language undetected",
   empty_after_cleaning: "empty after cleaning", unprocessed: "not processed yet"};
 
-let state = null, current = null, currentSeq = "", lastPlanKey = null, containerOrder = [];
+let state = null, current = null, currentSeq = "", lastPlanKey = null, containerOrder = [], shownRunning = false;
 
 async function api(path, body) {
   const r = await fetch("/api/" + path, body === undefined ? {} :
@@ -323,14 +301,34 @@ async function api(path, body) {
   return j;
 }
 
+// ---------- theme ----------
+const THEMES = ["system", "light", "dark"];
+const savedTheme = () => { try { return localStorage.getItem("smdc.theme") || "system"; } catch { return "system"; } };
+function applyTheme(t) {
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  $("#theme").title = `Theme: ${t}`;
+}
+$("#theme").onclick = () => {
+  const t = THEMES[(THEMES.indexOf(savedTheme()) + 1) % 3];
+  try { localStorage.setItem("smdc.theme", t); } catch { /* private mode */ }
+  applyTheme(t);
+};
+applyTheme(savedTheme());
+
 // ---------- navigation ----------
 function show(view) {
   for (const v of ["new", "runs", "quota", "detail"]) $("#view-" + v).classList.toggle("hidden", v !== view);
-  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
+  document.querySelectorAll("nav a").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
+  if (view !== "detail") history.replaceState(null, "", "#" + view);
   if (view === "runs") renderRuns();
-  if (view === "quota") { loadQuota(); history.replaceState(null, "", "#quota"); }
+  if (view === "quota") loadQuota();
 }
-document.querySelectorAll("nav button").forEach((b) => b.onclick = () => show(b.dataset.view));
+document.querySelectorAll("a[data-view]").forEach((b) => b.onclick = (ev) => {
+  ev.preventDefault();
+  show(b.dataset.view);
+  if (b.dataset.view === "detail" && current) history.replaceState(null, "", "#run=" + encodeURIComponent(current));
+});
 
 // ---------- header quota ----------
 function renderQuota(b) {
@@ -343,6 +341,18 @@ function renderQuota(b) {
   meter.firstElementChild.style.width = pct + "%";
   meter.classList.toggle("warn", pct >= 80 && pct < 100);
   meter.classList.toggle("full", pct >= 100);
+}
+
+// The figures of the New run and Runs pages, from the state polled every two seconds.
+function renderSummaries() {
+  const b = state.budget, runs = state.runs, count = (...st) => runs.filter((r) => st.includes(r.status)).length;
+  $("#new-strip").innerHTML = stat("Units left today", fmt(b.remaining), `of ${fmt(b.daily)}`) +
+    stat("Runs so far", runs.length) +
+    stat("Collecting now", state.job.busy ? state.job.run : "nothing");
+  $("#runs-strip").innerHTML = stat("Runs", runs.length) +
+    stat("Finished", count("done")) +
+    stat("To resume", count("paused", "incomplete", "error")) +
+    stat("Units spent", fmt(runs.reduce((a, r) => a + (r.units || 0), 0)), "latest snapshot of each run");
 }
 
 function statusPill(s, msg) {
@@ -414,11 +424,7 @@ function renderPlan(r) {
   $("#plan-out").innerHTML = `
     <table style="margin-top:12px"><tr><th>video</th><th>title</th><th>channel</th>
       <th class="num">comments</th><th class="num">units</th></tr>${rows}</table>
-    <div class="tiles" style="margin:14px 0">
-      <div class="tile"><div class="k">Videos</div><div class="v">${r.containers.length}</div></div>
-      <div class="tile"><div class="k">Estimated cost (units)</div><div class="v">${fmt(e.low)}${e.high > e.low ? "–" + fmt(e.high) : ""}</div></div>
-      <div class="tile"><div class="k">Left today</div><div class="v">${fmt(b.remaining)}</div></div>
-    </div>
+    <div class="ui-strip">${stat("Videos", r.containers.length)}${stat("Estimated cost (units)", fmt(e.low) + (e.high > e.low ? "–" + fmt(e.high) : ""))}${stat("Left today", fmt(b.remaining))}</div>
     ${over ? '<p class="err">The low estimate exceeds today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
     <div class="row"><button class="btn primary" id="b-start">Start collection</button>
       <label class="check"><input type="checkbox" id="f-wait" ${over ? "checked" : ""}> continue automatically after each quota reset (keep this page's server running)</label></div>`;
@@ -464,12 +470,17 @@ async function loadRun() {
   catch (e) { $("#d-err").textContent = e.message; return; }
   $("#d-err").textContent = "";
   const running = state && state.job.busy && state.job.run === current;
+  shownRunning = !!running;
   $("#d-name").textContent = d.run.name;
   $("#d-status").innerHTML = statusPill(running ? "running" : d.snapshot.status, d.snapshot.message);
   const latest = d.snapshots[d.snapshots.length - 1];
-  $("#d-msg").innerHTML = `${d.snapshot.message ? esc(d.snapshot.message) + " · " : ""}snapshot ${d.snapshot.seq} of ${d.snapshots.length},
-    ${fmt(d.snapshot.units)} units · started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC
-    · <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}`;
+  $("#d-msg").innerHTML = `${d.snapshot.message ? esc(d.snapshot.message) + " · " : ""}Started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC.
+    <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}.`;
+  const sum = (k) => (d.report.comments[k] || 0) + (d.report.replies[k] || 0);
+  $("#d-strip").innerHTML = stat("Collected", fmt(sum("collected")), `${fmt(d.report.replies.collected || 0)} replies`) +
+    stat("Kept after filtering", fmt(sum("kept"))) +
+    stat("Videos", d.containers.length, `${d.containers.filter((c) => c.phase === "done").length} finished`) +
+    stat("Units spent", fmt(d.snapshot.units), `snapshot ${d.snapshot.seq} of ${d.snapshots.length}`);
   const seqSel = $("#d-seq");
   seqSel.classList.toggle("hidden", d.snapshots.length < 2);
   seqSel.innerHTML = d.snapshots.map((s) => `<option value="${s.seq}" ${s.seq === d.snapshot.seq ? "selected" : ""}>snapshot ${s.seq}</option>`).join("");
@@ -542,11 +553,7 @@ async function loadDiff() {
   $("#d-diff-card").classList.toggle("hidden", !d.available);
   if (!d.available) return;
   const txt = (s) => `<span class="txt">${esc((s || "").slice(0, 160))}</span>`;
-  $("#d-diff").innerHTML = `<div class="tiles">
-      <div class="tile"><div class="k">Seen again</div><div class="v">${fmt(d.matched)}</div></div>
-      <div class="tile"><div class="k">New in this snapshot</div><div class="v">${fmt(d.new)}</div></div>
-      <div class="tile"><div class="k">Not re-sampled</div><div class="v">${fmt(d.missing)}</div></div>
-      <div class="tile"><div class="k">No longer public</div><div class="v">${fmt(d.gone.length)}</div></div></div>
+  $("#d-diff").innerHTML = `<div class="ui-strip">${stat("Seen again", fmt(d.matched))}${stat("New in this snapshot", fmt(d.new))}${stat("Not re-sampled", fmt(d.missing))}${stat("No longer public", fmt(d.gone.length))}</div>
     <p class="hint">“Not re-sampled” comments were checked one by one: “no longer public” ones were deleted, hidden or held for review since snapshot ${d.prev_seq}.</p>
     ${d.gone.length ? `<h3>No longer public</h3><table><tr><th>video</th><th>posted</th><th class="num">likes</th><th>text (from snapshot ${d.prev_seq})</th></tr>` +
       d.gone.slice(0, 100).map((g) => `<tr><td>${esc(g.container_id)}</td><td>${esc((g.created_at || "").slice(0, 10))}</td><td class="num">${fmt(g.like_count)}</td><td>${txt(g.text)}</td></tr>`).join("") + "</table>" : ""}
@@ -650,7 +657,7 @@ function coverageParts(cov) {
     : "Not in your sample (comment cap or date window), or never returned";
   return [
     {k: "kept", label: "Collected and kept", color: "var(--s1)"},
-    {k: "filtered_out", label: "Collected, then filtered out (language / empty)", color: "var(--accent-track)"},
+    {k: "filtered_out", label: "Collected, then filtered out (language / empty)", color: "var(--seq-2)"},
     {k: "not_returned", label: "Replies YouTube reported but did not return", color: "var(--s2)"},
     {k: "over_reply_cap", label: "Replies beyond your reply cap", color: "var(--s3)"},
     {k: "not_sampled", label: gap, color: "var(--other)"},
@@ -666,11 +673,7 @@ function renderCoverage(cov) {
   }
   const tot = t.on_platform;
   $("#d-coverage").innerHTML = `
-    <div class="tiles">
-      <div class="tile"><div class="k">Comments on YouTube (${t.videos} finished video${t.videos > 1 ? "s" : ""})</div><div class="v">${fmt(tot)}</div></div>
-      <div class="tile"><div class="k">Collected</div><div class="v">${fmt(t.collected)} <span class="muted" style="font-size:14px">${pctOf(t.collected, tot)}</span></div></div>
-      <div class="tile"><div class="k">Kept after filtering</div><div class="v">${fmt(t.kept)} <span class="muted" style="font-size:14px">${pctOf(t.kept, tot)}</span></div></div>
-    </div>
+    <div class="ui-strip">${stat(`Comments on YouTube (${t.videos} finished video${t.videos > 1 ? "s" : ""})`, fmt(tot))}${stat("Collected", fmt(t.collected), pctOf(t.collected, tot))}${stat("Kept after filtering", fmt(t.kept), pctOf(t.kept, tot))}</div>
     <div class="stack" role="img" aria-label="Breakdown of the comments on YouTube">${parts.filter((p) => t[p.k]).map((p) =>
       `<i style="flex:${t[p.k]};background:${p.color}" title="${esc(p.label)}: ${fmt(t[p.k])} (${pctOf(t[p.k], tot)})"></i>`).join("")}</div>
     <table>${parts.map((p) => `<tr><td><span class="sw" style="background:${p.color}"></span>${esc(p.label)}</td>
@@ -706,13 +709,15 @@ async function loadQuota() {
   let q;
   try { q = await api("quota"); } catch (e) { return; }
   const b = q.budget, pct = Math.min(100, 100 * b.used / b.daily);
-  $("#qv-left").textContent = fmt(b.remaining);
+  const reset = new Date(b.reset);
+  $("#qv-strip").innerHTML = stat("Units left today", fmt(b.remaining), `room for up to ~${fmt(b.remaining * 100)} more comments`) +
+    stat("Used today", fmt(b.used), `${pct.toFixed(1)}%`) +
+    stat("Daily quota", fmt(b.daily)) +
+    stat("Resets", reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"}), "your time");
   const m = $("#qv-meter");
   m.firstElementChild.style.width = pct + "%";
   m.classList.toggle("warn", pct >= 80 && pct < 100); m.classList.toggle("full", pct >= 100);
-  const reset = new Date(b.reset);
-  $("#qv-text").textContent = `${fmt(b.used)} of ${fmt(b.daily)} used (${pct.toFixed(1)}%) · resets ${reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})} your time` +
-    ` · room for up to ~${fmt(b.remaining * 100)} more comments`;
+  $("#qv-text").textContent = `${fmt(b.used)} of ${fmt(b.daily)} units used`;
   $("#qv-note").innerHTML = `Counts only the calls made by this tool. If the same key is used elsewhere, YouTube's own figure is on the
     <a href="${esc(q.console)}" target="_blank" rel="noopener">Google Cloud quota page</a> (it can lag by a few minutes).`;
   const labels = {...ENDPOINTS};
@@ -731,7 +736,8 @@ function renderDays(days, daily) {
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Units spent per day">`;
   svg += '<g class="grid">' + [0, .5, 1].map((f) => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(niceTop * f)}" y2="${y(niceTop * f)}"/>`).join("") + "</g>";
   svg += '<g class="axis">' + [0, .5, 1].map((f) => `<text x="${m.l - 6}" y="${y(niceTop * f) + 4}" text-anchor="end">${fmt(niceTop * f)}</text>`).join("");
-  days.forEach((d, i) => { if (i % 2 === days.length % 2 || i === days.length - 1)
+  const every = W < 520 ? 4 : 2;   // the dates must not run into each other on a phone
+  days.forEach((d, i) => { if ((days.length - 1 - i) % every === 0)
     svg += `<text x="${m.l + slot * (i + .5)}" y="${H - 6}" text-anchor="middle">${d.day.slice(5)}</text>`; });
   svg += "</g>";
   if (showCap) svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(daily)}" y2="${y(daily)}" stroke="${css("--text-2")}" stroke-width="1"/>
@@ -739,7 +745,7 @@ function renderDays(days, daily) {
   days.forEach((d, i) => {
     if (!d.units) return;
     const x = m.l + slot * (i + .5) - bw / 2, h = y(0) - y(d.units), r = Math.min(4, h, bw / 2);
-    svg += `<path fill="${css("--accent")}" d="M${x},${y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z"/>`;
+    svg += `<path fill="${css("--tool")}" d="M${x},${y(0)} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z"/>`;
   });
   days.forEach((d, i) => svg += `<rect x="${m.l + slot * i}" y="${m.t}" width="${slot}" height="${H - m.t - m.b}" fill="transparent" data-i="${i}"/>`);
   box.innerHTML = svg + '<div class="tip" id="qv-tip"></div>';
@@ -761,16 +767,16 @@ $(".quota").onclick = () => show("quota");
 async function refreshState() {
   try { state = await api("state"); } catch (e) { return; }
   renderQuota(state.budget);
+  renderSummaries();
   if (!$("#view-runs").classList.contains("hidden")) renderRuns();
   if (!$("#view-quota").classList.contains("hidden")) loadQuota();
 }
-let wasBusy = false;
 async function tick() {
   await refreshState();
   if (current && !$("#view-detail").classList.contains("hidden")) {
+    // Reload while the page still shows the run as running, even if it stopped between two ticks.
     const busy = state.job.busy && state.job.run === current;
-    if (busy || wasBusy) { await loadRun(); if (!busy) loadExplore(); }
-    wasBusy = busy;
+    if (busy || shownRunning) { await loadRun(); if (!busy) loadExplore(); }
   }
 }
 
@@ -779,6 +785,7 @@ async function tick() {
   fillForm(state.defaults);
   const linked = decodeURIComponent((location.hash.match(/^#run=(.+)$/) || [])[1] || "");
   if (location.hash === "#quota") show("quota");
+  else if (location.hash === "#runs") show("runs");
   else if (linked && state.runs.some((r) => r.name === linked)) openRun(linked);
   else if (state.job.busy) openRun(state.job.run);
   setInterval(tick, 2000);
