@@ -65,16 +65,15 @@ Keep the key to yourself: each person uses their own.
 | macOS | double-click **`dashboard.command`** (the first time: right-click → *Open*, then confirm, since macOS blocks unsigned scripts) |
 | Linux | run **`./dashboard.sh`** in a terminal from this folder |
 
-The first launch creates a Python environment and installs the dependencies (a few minutes).
-It then creates a file named `.env` in your user configuration folder and opens it: paste your key after
-`YOUTUBE_API_KEY=`, save, and launch again. From then on, the launcher opens the dashboard in
-your browser at <http://127.0.0.1:8777>. Keep the terminal window open while you use it; closing
-it (or Ctrl-C) stops the dashboard and pauses any running collection, which *Resume* continues
-later.
+The first launch creates a Python environment and installs the dependencies (a few minutes), then opens the dashboard
+in your browser at <http://127.0.0.1:8777>. Without a key, its first page asks for one: paste it there and it is tested
+(1 unit) and saved. Keep the terminal window open while you use it; closing it (or Ctrl-C) stops the dashboard and
+pauses any running collection, which *Resume* continues later.
 
-The `.env` lives outside this folder (see the table below), so the key never travels with the code,
-even when the folder is synced or shared. A `.env` left in this folder by an older version still works,
-but moving it to the configuration folder is safer. It is readable by its owner only, and never committed to git.
+The key is saved in a `.env` in your user configuration folder, outside this folder (see the table below), so it never
+travels with the code, even when the folder is synced or shared. You can also edit that file by hand, or use
+`YOUTUBE_API_KEY`. A `.env` left in this folder by an older version still works, but the configuration folder is safer.
+It is readable by its owner only, and never committed to git.
 
 **Where things go.** Both locations are outside the code folder on purpose. An environment
 breaks when its folder is synced or moved. A database that two computers write to through a
@@ -158,6 +157,7 @@ smdc resume NAME [--wait]       # continue a paused or incomplete run
 smdc refresh NAME [--wait]      # new snapshot of the same videos
 smdc process NAME --config other.toml   # redo text processing with other [process] settings
 smdc export NAME [--format csv|jsonl|parquet] [--kept] [--excel] [--snapshot N]
+smdc delete NAME [--older-snapshots] [--keep-exports] [--yes]   # for good: the data leaves the database file
 ```
 
 Everything lives in the data folder (`~/smdc-data` unless `SMDC_DATA` or
@@ -216,8 +216,9 @@ to get around the limit: the YouTube API Terms forbid it.
   for whoever also has the raw API data. Share it only with people allowed to re-identify.
   Losing it changes every author key in future runs.
 - **30-day rule:** the YouTube API Services Developer Policies ask that stored API data be
-  refreshed or deleted after 30 days. The dashboard shows the date for each run, and `refresh`
-  renews a run.
+  refreshed or deleted after 30 days. The dashboard and `smdc status` show the date for each run and snapshot, with
+  a warning seven days before. `refresh` writes a new snapshot and leaves the older ones as they were, so delete those
+  too (*Delete…* in the dashboard, or `smdc delete NAME --older-snapshots`).
 - **The database is personal data.** Exports are pseudonymized, but the database keeps each
   comment's text exactly as returned (with `@handles`) so that it can be reprocessed. Share
   exports, not `smdc.sqlite`. Raw API responses are stored without commenter
@@ -251,6 +252,7 @@ src/smdc/
     youtube.py    YouTube Data API v3 (the only YouTube-specific code)
   pipeline.py     runs a snapshot: phases, checkpoints, pause/resume, refresh checks
   store.py        SQLite schema and queries
+  retention.py    the 30-day date, deleting runs and snapshots
   budget.py       daily quota ledger and reset time
   net.py          HTTP GET with retries
   text.py         normalization, cleaning, language detection, exclusion reasons

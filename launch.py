@@ -52,68 +52,12 @@ def install() -> None:
     stamp.write_text(want)
 
 
-def open_in_editor(path: Path) -> None:
-    try:
-        if os.name == "nt":
-            os.startfile(path)  # noqa: S606 (opens Notepad or the default editor)
-        elif sys.platform == "darwin":
-            subprocess.run(["open", "-t", str(path)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(path)], check=False)
-    except OSError:
-        pass
-
-
-def user_env_path() -> Path:
-    """Same as smdc.config.user_env_path (this script runs before smdc is installed)."""
-    if os.environ.get("SMDC_ENV"):
-        return Path(os.environ["SMDC_ENV"]).expanduser()
-    if os.name == "nt" and os.environ.get("APPDATA"):
-        return Path(os.environ["APPDATA"]) / "smdc" / ".env"
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "smdc" / ".env"
-
-
-def has_key(env: Path) -> bool:
-    if not env.is_file():
-        return False
-    for line in env.read_text(encoding="utf-8").splitlines():
-        k, _, v = line.partition("=")
-        if k.strip() == "YOUTUBE_API_KEY" and v.strip():
-            return True
-    return False
-
-
-def api_key_ready() -> bool:
-    """True when a YouTube API key is set; otherwise creates/opens the user's .env and explains.
-
-    The .env goes in the user's config folder (not this folder, which may be synced or shared);
-    a .env left here by an older version still works.
-    """
-    if os.environ.get("YOUTUBE_API_KEY", "").strip() or has_key(HERE / ".env"):
-        return True
-    env = user_env_path()
-    if has_key(env):
-        return True
-    if not env.exists():  # it will hold the key: readable by its owner only
-        env.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        fd = os.open(env, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write((HERE / ".env.example").read_text(encoding="utf-8"))
-    print(f"\nNo YouTube API key yet. Opening {env}:\n"
-          "paste your key after YOUTUBE_API_KEY= , save, and launch again.\n"
-          "(How to get a key: README.md, section 'Get a YouTube API key'.)")
-    open_in_editor(env)
-    return False
-
-
 def main() -> int:
     sys.stdout.reconfigure(line_buffering=True)  # keep our messages in order with pip's
     if sys.version_info < (3, 11):
         print(f"Python 3.11 or newer is required (this is {sys.version.split()[0]}).")
         return 1
-    install()
-    if not api_key_ready():
-        return 1
+    install()  # the dashboard asks for the API key itself, on its first page
     os.chdir(HERE)  # so the dashboard still finds a .env left here by an older version
     proc = subprocess.Popen([str(exe("smdc")), "dashboard", *sys.argv[1:]])
     try:

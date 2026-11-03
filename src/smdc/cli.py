@@ -7,6 +7,7 @@
     smdc process NAME [--config f]  # redo text processing (no API calls)
     smdc export NAME [--format csv|jsonl|parquet] [--kept] [--excel]
     smdc status [NAME]
+    smdc delete NAME [--older-snapshots] [--keep-exports] [--yes]
     smdc dashboard [--port 8777]
 
 Global option --data DIR (default $SMDC_DATA or ~/smdc-data) selects the
@@ -20,11 +21,11 @@ import os
 import sys
 from pathlib import Path
 
-from . import __version__, config, pipeline
+from . import __version__, config, net, pipeline, retention
 from .budget import Budget
 from .export import export
 from .privacy import load_secret
-from .sources import get_source
+from .sources import explain_error, get_source, validate_targets
 from .store import Store
 
 # Outside the code folder on purpose: a database in a synced folder (OneDrive, Dropbox, iCloud)
@@ -75,6 +76,7 @@ def print_plan(containers, est, budget: Budget) -> None:
 
 def cmd_estimate(ctx: Ctx, a) -> int:
     cfg = config.load(a.config)
+    validate_targets(cfg)
     budget = ctx.budget(cfg)
     containers, est = pipeline.plan(get_source(cfg.source, budget), cfg)
     print_plan(containers, est, budget)
@@ -84,6 +86,7 @@ def cmd_estimate(ctx: Ctx, a) -> int:
 def cmd_run(ctx: Ctx, a) -> int:
     cfg = config.load(a.config)
     ctx.store.check_new_name(cfg.name)
+    validate_targets(cfg)
     budget = ctx.budget(cfg)
     containers, est = pipeline.plan(get_source(cfg.source, budget), cfg)
     print_plan(containers, est, budget)
@@ -141,11 +144,12 @@ def print_status(ctx: Ctx, ref: str | None) -> None:
     if not ref:
         for r in ctx.store.runs():
             print(f"{r['name']:<30} snapshot {r['seq']} {r['status']:<11} {r['units']:>6} units"
-                  f"  {r['message'] or ''}")
+                  f"  delete by {retention.delete_by(r['oldest_at'])}  {r['message'] or ''}")
         return
     run = ctx.store.run(ref)
     for s in ctx.store.snapshots(run["run_id"]):
-        print(f"snapshot {s['seq']}: {s['status']} ({s['units']} units) {s['message'] or ''}")
+        print(f"snapshot {s['seq']}: {s['status']} ({s['units']} units), delete by "
+              f"{retention.snapshot_delete_by(s)} {s['message'] or ''}")
     snap = ctx.store.snapshots(run["run_id"])[-1]
     for c in ctx.store.containers(snap["snapshot_id"]):
         print(f"  {c['container_id']}  {c['phase']:<11} {c['threads']:>6} comments "
@@ -168,6 +172,19 @@ def print_status(ctx: Ctx, ref: str | None) -> None:
 
 def cmd_status(ctx: Ctx, a) -> int:
     print_status(ctx, a.run)
+    return 0
+
+
+def cmd_delete(ctx: Ctx, a) -> int:
+    run = ctx.store.run(a.run)
+    what = "the older snapshots of" if a.older_snapshots else "everything collected in"
+    extra = "" if a.keep_exports else " and its exports"
+    if not a.yes and input(f"Delete {what} {run['name']!r}{extra}? This cannot be undone. [y/N] ").strip().lower() != "y":
+        print("nothing deleted")
+        return 1
+    fn = retention.delete_older_snapshots if a.older_snapshots else retention.delete_run
+    out = fn(ctx.store, ctx.data, run["name"], not a.keep_exports)
+    print(f"deleted {out['snapshots']} snapshot(s) and {len(out['exports'])} export folder(s)")
     return 0
 
 
@@ -208,6 +225,11 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--out", help="parent folder (default DATA/exports)")
     s = sub.add_parser("status", help="list runs, or detail one run")
     s.add_argument("run", nargs="?")
+    s = sub.add_parser("delete", help="delete a run or its older snapshots, for good (30-day rule)")
+    s.add_argument("run")
+    s.add_argument("--older-snapshots", action="store_true", help="keep the latest snapshot")
+    s.add_argument("--keep-exports", action="store_true", help="leave the exports in DATA/exports")
+    s.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     s = sub.add_parser("dashboard", help="local web dashboard")
     s.add_argument("--port", type=int, default=8777)
     s.add_argument("--no-browser", action="store_true")
@@ -218,6 +240,9 @@ def main(argv: list[str] | None = None) -> int:
     ctx = Ctx(Path(a.data))
     try:
         return globals()[f"cmd_{a.cmd}"](ctx, a)
+    except net.HttpError as e:
+        print(f"error: {explain_error(e)}", file=sys.stderr)
+        return 2
     except (KeyError, ValueError, RuntimeError, FileNotFoundError) as e:
         if a.verbose:
             raise

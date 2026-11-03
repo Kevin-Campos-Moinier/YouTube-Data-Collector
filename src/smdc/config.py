@@ -184,3 +184,28 @@ def load_dotenv(*paths: Path) -> None:
                     k, v = line.split("=", 1)
                     os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
             return
+
+
+def save_api_key(key: str, name: str = "YOUTUBE_API_KEY") -> Path:
+    """Writes the key into the user's .env, readable by its owner only, and uses it from now on.
+
+    The file's other lines are kept. It is replaced in one step, so a crash cannot leave half a file.
+
+    Args:
+        key: The key, already checked: it holds no space or line break.
+        name: The variable it goes in.
+
+    Returns:
+        The .env's path.
+    """
+    env = user_env_path()
+    env.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lines = env.read_text(encoding="utf-8").splitlines() if env.is_file() else []
+    kept = [ln for ln in lines if ln.partition("=")[0].strip() != name]
+    tmp = env.with_name(env.name + ".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write("\n".join([f"{name}={key}", *kept]) + "\n")
+    os.replace(tmp, env)
+    os.environ[name] = key
+    return env

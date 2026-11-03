@@ -116,7 +116,8 @@ def export(store: Store, run_ref: str, out_root: Path, fmt: str = "csv", kept_on
         "containers": {c["container_id"]: c["status"] + (f" ({c['error']})" if c["error"] else "")
                        for c in containers},
         "retention_note": "YouTube API Services Developer Policies: API data stored for more "
-                          "than 30 days must be refreshed or deleted (refresh this run).",
+                          "than 30 days must be refreshed or deleted (refresh this run, then delete its "
+                          "older snapshots; or delete the run).",
     })
     _codebook(out / "codebook.md", run["name"], item_cols, snap["seq"] > 1)
     return out

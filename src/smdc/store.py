@@ -64,6 +64,9 @@ ITEM_COLS = ("item_id", "container_id", "thread_id", "parent_id", "depth", "auth
              "created_at", "updated_at", "collected_at", "selected", "extra",
              "text_norm", "text_clean", "lang", "lang_conf", "excluded_reason")
 TERMINAL = ("done", "unavailable", "error")
+# What the quota ledger points to once a snapshot is deleted: SQLite may reuse a deleted row's id,
+# and the units of a deleted run must not reappear under a new one.
+DELETED_SNAPSHOT = 0
 
 
 def now() -> str:
@@ -132,7 +135,9 @@ class Store:
             SELECT r.run_id, r.name, r.platform, r.created_at, s.snapshot_id, s.seq,
                    s.status, s.started_at, s.finished_at, s.message,
                    (SELECT COALESCE(SUM(units), 0) FROM ledger l JOIN snapshots s2
-                      ON l.snapshot_id = s2.snapshot_id WHERE s2.run_id = r.run_id) AS units
+                      ON l.snapshot_id = s2.snapshot_id WHERE s2.run_id = r.run_id) AS units,
+                   (SELECT MIN(COALESCE(finished_at, started_at)) FROM snapshots
+                      WHERE run_id = r.run_id) AS oldest_at
             FROM runs r LEFT JOIN snapshots s ON s.snapshot_id =
               (SELECT MAX(snapshot_id) FROM snapshots WHERE run_id = r.run_id)
             ORDER BY r.run_id DESC""")
@@ -152,6 +157,39 @@ class Store:
 
     def snapshot(self, snapshot_id: int) -> dict:
         return self.q("SELECT * FROM snapshots WHERE snapshot_id = ?", (snapshot_id,))[0]
+
+    def _delete_snapshot_rows(self, db, snapshot_ids: list[int]) -> None:
+        marks = ",".join("?" * len(snapshot_ids))
+        db.execute(f"DELETE FROM gone WHERE snapshot_id IN ({marks}) OR prev_snapshot_id IN ({marks})",
+                   (*snapshot_ids, *snapshot_ids))
+        for table in ("items", "raw", "containers", "snapshots"):
+            db.execute(f"DELETE FROM {table} WHERE snapshot_id IN ({marks})", snapshot_ids)
+        db.execute(f"UPDATE ledger SET snapshot_id = ? WHERE snapshot_id IN ({marks})",
+                   (DELETED_SNAPSHOT, *snapshot_ids))
+
+    def _purge(self) -> None:
+        """Takes deleted data out of the database file, not just out of its tables."""
+        with self.lock:
+            self.db.execute("VACUUM")
+            self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def delete_snapshots(self, snapshot_ids: list[int]) -> None:
+        """Deletes these snapshots and everything collected in them."""
+        self.db.execute("PRAGMA secure_delete = ON")
+        with self.tx() as db:
+            self._delete_snapshot_rows(db, snapshot_ids)
+        self._purge()
+
+    def delete_run(self, run_id: int) -> None:
+        """Deletes a run, its snapshots, everything collected in them and its log."""
+        self.db.execute("PRAGMA secure_delete = ON")
+        with self.tx() as db:
+            ids = [r[0] for r in db.execute("SELECT snapshot_id FROM snapshots WHERE run_id = ?", (run_id,))]
+            if ids:
+                self._delete_snapshot_rows(db, ids)
+            db.execute("DELETE FROM events WHERE run_id = ?", (run_id,))
+            db.execute("DELETE FROM runs WHERE run_id = ?", (run_id,))
+        self._purge()
 
     def set_snapshot(self, snapshot_id: int, **fields) -> None:
         sets = ", ".join(f"{k} = ?" for k in fields)
@@ -387,7 +425,7 @@ class Store:
 
     def ledger_since(self, platform: str, since: str) -> list[dict]:
         """Ledger rows since a UTC timestamp, with the run each call was made for."""
-        return self.q("""SELECT l.ts, l.endpoint, l.units, r.name AS run FROM ledger l
+        return self.q("""SELECT l.ts, l.endpoint, l.units, l.snapshot_id, r.name AS run FROM ledger l
                          LEFT JOIN snapshots s ON s.snapshot_id = l.snapshot_id
                          LEFT JOIN runs r ON r.run_id = s.run_id
                          WHERE l.platform = ? AND l.ts >= ? ORDER BY l.ts""", (platform, since))

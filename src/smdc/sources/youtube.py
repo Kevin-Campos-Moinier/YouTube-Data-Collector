@@ -28,6 +28,7 @@ UNAVAILABLE = {"commentsDisabled": "comments_disabled", "videoNotFound": "not_fo
                "forbidden": "forbidden", "processingFailure": "processing_failure",
                "channelNotFound": "not_found", "playlistNotFound": "not_found"}
 COST = {"search": 100}
+PROBE_VIDEO = "dQw4w9WgXcQ"  # any public video: the answer does not matter, only that the key is accepted
 
 
 def parse_video_id(target: str) -> str | None:
@@ -53,6 +54,67 @@ def parse_video_id(target: str) -> str | None:
     return cand if ID_RE.match(cand) else None
 
 
+def classify_target(raw: str) -> tuple[str | None, str | None]:
+    """What one line of targets asks for, with no network call.
+
+    Args:
+        raw: A video ID or URL, `channel:@handle`, `channel:UC...`, a channel URL, `playlist:ID`,
+            a playlist URL or `search:terms`, with or without a trailing `# comment`.
+
+    Returns:
+        (kind, argument). Kind is "video", "channel", "playlist" or "search"; None for a blank line
+        or a comment; "invalid" for anything else.
+    """
+    t = raw.split(" #")[0].strip() if not raw.lstrip().startswith("#") else ""
+    if not t:
+        return None, None
+    try:
+        vid = parse_video_id(t)
+        kind, _, arg = t.partition(":")
+        u = urllib.parse.urlparse(t if "://" in t else "https://" + t)
+    except ValueError:  # a malformed URL, such as an unclosed bracket
+        return "invalid", None
+    if vid:
+        return "video", vid
+    qs = urllib.parse.parse_qs(u.query)
+    path = [p for p in u.path.split("/") if p]
+    if kind == "playlist" or "list" in qs:
+        ref = arg.strip() if kind == "playlist" else qs["list"][0]
+        return ("playlist", ref) if ref else ("invalid", None)
+    if kind == "channel":
+        return ("channel", arg.strip()) if arg.strip() else ("invalid", None)
+    if t.startswith("@") and " " not in t:
+        return "channel", t
+    if "://" in t or "youtube." in t:
+        if path and path[0].startswith("@"):
+            return "channel", path[0]
+        if len(path) >= 2 and path[0] == "channel":
+            return "channel", path[1]
+    if kind == "search":
+        return ("search", arg.strip()) if arg.strip() else ("invalid", None)
+    return "invalid", None
+
+
+def explain_http_error(e: net.HttpError) -> str:
+    """Says in words what a failed call means and what to do about it."""
+    if e.status == 0:
+        return "Could not reach YouTube: check your internet connection and try again."
+    err = e.body.get("error") if isinstance(e.body.get("error"), dict) else {}
+    reasons = {e.reason, *(d.get("reason") for d in err.get("details") or [] if isinstance(d, dict))}
+    if "API_KEY_INVALID" in reasons:
+        return "YouTube says this API key is not valid: check that you copied all of it, or create a new one."
+    if reasons & {"SERVICE_DISABLED", "accessNotConfigured"}:
+        return ("The YouTube Data API v3 is not enabled for this key's project: enable it in the Google Cloud "
+                "console (APIs & Services), wait a minute and try again.")
+    if reasons & {"API_KEY_SERVICE_BLOCKED", "API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED",
+                  "ipRefererBlocked"}:
+        return ("This key's restrictions block the call: on the key in the Google Cloud console, allow the "
+                "YouTube Data API v3 and leave Application restrictions on None.")
+    if reasons & QUOTA_REASONS:
+        return "The daily quota of this key is used up. It resets at midnight, Pacific time."
+    return f"YouTube refused the call (HTTP {e.status} {e.reason}).".replace(" )", ")")
+
+
 class YouTubeSource:
     """Collects YouTube comments through the official Data API v3.
 
@@ -66,6 +128,20 @@ class YouTubeSource:
 
     def __init__(self, api_key: str, budget: Budget, get=net.get_json):
         self.key, self.budget, self.get = api_key, budget, get
+
+    def check_key(self) -> None:
+        """Tries the key on one video (1 unit). A key out of quota is a good key.
+
+        Raises:
+            ValueError: YouTube refused the key; the message says what to do.
+        """
+        self.budget.charge("videos", 1)
+        try:
+            self.get(API + "videos", {"part": "id", "id": PROBE_VIDEO}, headers={"X-Goog-Api-Key": self.key},
+                     retry_reasons=RETRY_REASONS)
+        except net.HttpError as e:
+            if e.reason not in QUOTA_REASONS:
+                raise ValueError(explain_http_error(e)) from None
 
     def _call(self, endpoint: str, params: dict) -> dict:
         self.budget.charge(endpoint, COST.get(endpoint, 1))
@@ -107,33 +183,21 @@ class YouTubeSource:
         out: dict[str, None] = {}
         limit = params.max_videos_per_target
         for raw in targets:
-            t = raw.split(" #")[0].strip() if not raw.lstrip().startswith("#") else ""
-            if not t:
+            kind, arg = classify_target(raw)
+            if kind is None:
                 continue
-            vid = parse_video_id(t)
-            if vid:
-                out[vid] = None
+            if kind == "video":
+                out[arg] = None
                 continue
-            kind, _, arg = t.partition(":")
-            u = urllib.parse.urlparse(t if "://" in t else "https://" + t)
-            qs = urllib.parse.parse_qs(u.query)
-            path = [p for p in u.path.split("/") if p]
-            if kind == "playlist" or "list" in qs:
-                ids = self._playlist(arg.strip() if kind == "playlist" else qs["list"][0], limit)
-            elif kind == "channel" or t.startswith("@") or (path and (
-                    path[0].startswith("@") or path[0] == "channel")):
-                if kind == "channel":
-                    ref = arg.strip()
-                elif t.startswith("@"):
-                    ref = t
-                else:
-                    ref = path[0] if path[0].startswith("@") else path[1]
-                ids = self._playlist(self._uploads(ref), limit)
+            if kind == "playlist":
+                ids = self._playlist(arg, limit)
+            elif kind == "channel":
+                ids = self._playlist(self._uploads(arg), limit)
             elif kind == "search":
                 if not params.allow_search:
                     raise ValueError("search: targets cost 100 units per 50 results; "
                                      "set allow_search = true to use them")
-                ids = self._search(arg.strip(), limit)
+                ids = self._search(arg, limit)
             else:
                 raise ValueError(f"unrecognized target {raw.strip()!r}")
             out.update(dict.fromkeys(ids))

@@ -11,6 +11,23 @@ All notable changes to this project are listed here. The format follows
 - New look for the dashboard: fonts and icons served locally (nothing loaded from outside), light, dark and system
   themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
 
+### Added
+
+- Delete a run, or the older snapshots a refresh leaves behind, from the dashboard or with `smdc delete`. The data
+  leaves the database file itself. Exports go too unless you untick the box (`--keep-exports`); the quota history stays.
+- Each snapshot has its own date for YouTube's 30-day rule: the Runs page and `smdc status` show it, with a warning
+  seven days before and once overdue.
+- First launch: the dashboard opens without a key and walks through getting one. Paste it in the page: it is tested
+  (1 unit), saved in the configuration folder, readable by you only, and never shown again. No file to edit, no second
+  launch. *Change the API key* is on the Quota page.
+- The videos box says what it understood as you type (`2 videos, 1 channel`), and which line is wrong.
+
+### Changed
+
+- Errors from the API say what to do (key not valid, API not enabled, key restrictions, quota, no connection), in the
+  dashboard and on the command line.
+- A mistake in a line of targets is reported before any need for a key or quota.
+
 ### Fixed
 
 - The dashboard could keep showing a run as "running", with the wrong buttons, after it was paused or finished between
@@ -18,6 +35,8 @@ All notable changes to this project are listed here. The format follows
 
 ### Security
 
+- The dashboard refuses request bodies above 1 MB, and any request to set the API key that does not come from its own
+  page.
 - The `.env` holding the API key now lives in the user's configuration folder
   (`~/.config/smdc/.env`, Windows `%APPDATA%\smdc\.env`, or `SMDC_ENV`), not in the code folder,
   which is often synced or shared. The launcher creates it there; a `.env` in the working folder

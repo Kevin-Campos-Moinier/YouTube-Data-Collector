@@ -48,6 +48,12 @@ button.btn.primary { background: var(--tool); border-color: var(--tool); color: 
 button.btn:disabled { opacity: .5; cursor: default; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .err { color: var(--critical); white-space: pre-wrap; }
+button.btn.danger { color: var(--critical); }
+button.btn.danger:hover { background: var(--surface-2); }
+button.btn.danger.solid { background: var(--critical); border-color: var(--critical); color: var(--surface); }
+.steps { margin: 0 0 14px; padding-left: 22px; }
+.steps li { margin: 6px 0; }
+.notice { background: var(--surface-2); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 14px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; }
 th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -111,6 +117,28 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
 </header>
 
 <main>
+<!-- API KEY -->
+<section id="view-key" class="hidden">
+  <h1 id="k-title">Connect your YouTube API key</h1>
+  <p class="lede">The tool reads public comments through YouTube's official API, with a free key of your own. Getting one takes about five minutes, once.</p>
+  <div class="card">
+    <ol class="steps">
+      <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Create a project</a> in the Google Cloud console. A dedicated Google account is a good idea.</li>
+      <li><a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">Enable the YouTube Data API v3</a> for that project.</li>
+      <li>In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a>, choose <b>Create credentials</b>, then <b>API key</b>. If asked what data you will access, choose <b>Public data</b>.</li>
+      <li>On the key, choose <b>Edit</b>, then under <b>API restrictions</b> restrict it to the YouTube Data API v3 and save. Leave <b>Application restrictions</b> on <b>None</b>.</li>
+      <li>Paste the key here.</li>
+    </ol>
+    <label for="k-key">API key</label>
+    <div class="row">
+      <input type="password" id="k-key" autocomplete="off" spellcheck="false" style="max-width:460px">
+      <button class="btn primary" id="b-key">Test and save</button>
+    </div>
+    <p class="err" id="k-err" role="alert"></p>
+    <p class="hint">The test costs 1 unit of the key's daily quota. The key is saved in <code id="k-file"></code>, readable by you only. It stays on this computer, is sent to YouTube alone, and is never shown again.</p>
+  </div>
+</section>
+
 <!-- NEW RUN -->
 <section id="view-new">
   <h1>New run</h1>
@@ -136,12 +164,13 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
       <div><label for="f-until">…until (exclusive)</label><input type="date" id="f-until"></div>
     </div>
     <h3>Videos</h3>
-    <textarea id="f-targets" placeholder="One per line — any of:
+    <textarea id="f-targets" aria-label="Videos" aria-describedby="f-targets-hint" placeholder="One per line — any of:
 https://www.youtube.com/watch?v=VLGy63pt9vA
 W2Wnvvj33Wo   # a comment after the ID is fine
 channel:@PlayStation      (latest uploads)
 playlist:PL...
 search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
+    <div class="hint" id="f-targets-hint" aria-live="polite"></div>
     <div class="grid" style="margin-top:8px">
       <div><label for="f-maxvid">Videos per channel / playlist / search</label><input type="number" id="f-maxvid" min="0"></div>
       <div><label class="check" style="margin-top:22px"><input type="checkbox" id="f-search"> allow search: targets (costly)</label></div>
@@ -186,6 +215,7 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
     <div class="meter" id="qv-meter"><i style="width:0"></i></div>
     <div class="hint" id="qv-text"></div>
     <p class="hint" id="qv-note"></p>
+    <p class="hint"><a href="#key" data-view="key">Change the API key</a></p>
   </div>
   <div class="grid">
     <div class="card"><h2>Today, by type of call</h2><div class="bars" id="qv-endpoints"></div></div>
@@ -198,6 +228,7 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
   <h1>Runs</h1>
   <p class="lede">Every collection so far, with its latest snapshot. Open one to watch it, explore its comments and export them.</p>
   <section class="ui-strip" id="runs-strip" aria-label="In brief"></section>
+  <p class="notice hidden" id="runs-msg" role="status"></p>
   <div class="card"><h2>All runs</h2><div id="runs-table"></div></div>
 </section>
 
@@ -207,14 +238,25 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
     <select id="d-seq" class="hidden" style="width:auto"></select></div>
   <p class="lede" id="d-msg"></p>
   <section class="ui-strip" id="d-strip" aria-label="In brief"></section>
+  <p class="notice hidden" id="d-older" role="status"></p>
   <div class="card">
     <div class="row">
       <button class="btn" id="b-pause">Pause</button>
       <button class="btn" id="b-resume">Resume</button>
       <label class="check"><input type="checkbox" id="d-wait"> continue after quota reset</label>
       <button class="btn" id="b-refresh" title="Collect the same videos again as a new snapshot">Refresh snapshot</button>
+      <button class="btn danger" id="b-delete">Delete…</button>
     </div>
-    <div id="d-err" class="err"></div>
+    <div id="d-delete" class="hidden" style="margin-top:12px">
+      <p style="margin:0 0 8px">This removes the collected comments from the database for good: it cannot be undone. Exports you moved elsewhere are not touched.</p>
+      <label class="check"><input type="checkbox" id="del-exports" checked> also delete this run's exports in the data folder</label>
+      <div class="row" style="margin-top:8px">
+        <button class="btn danger solid" id="b-del-run">Delete this run</button>
+        <button class="btn danger" id="b-del-older">Delete older snapshots</button>
+        <button class="btn" id="b-del-cancel">Cancel</button>
+      </div>
+    </div>
+    <div id="d-err" class="err" role="alert"></div>
   </div>
 
   <div class="card">
@@ -318,11 +360,17 @@ applyTheme(savedTheme());
 
 // ---------- navigation ----------
 function show(view) {
-  for (const v of ["new", "runs", "quota", "detail"]) $("#view-" + v).classList.toggle("hidden", v !== view);
+  if (view === "new" && state && !state.has_key) view = "key";    // nothing can be collected without a key
+  for (const v of ["key", "new", "runs", "quota", "detail"]) $("#view-" + v).classList.toggle("hidden", v !== view);
   document.querySelectorAll("nav a").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
   if (view !== "detail") history.replaceState(null, "", "#" + view);
   if (view === "runs") renderRuns();
   if (view === "quota") loadQuota();
+  if (view === "key") {
+    $("#k-title").textContent = state && state.has_key ? "Change your YouTube API key" : "Connect your YouTube API key";
+    $("#k-file").textContent = state ? state.key_file : "";
+    $("#k-key").focus();
+  }
 }
 document.querySelectorAll("a[data-view]").forEach((b) => b.onclick = (ev) => {
   ev.preventDefault();
@@ -352,6 +400,7 @@ function renderSummaries() {
   $("#runs-strip").innerHTML = stat("Runs", runs.length) +
     stat("Finished", count("done")) +
     stat("To resume", count("paused", "incomplete", "error")) +
+    stat("Refresh or delete soon", runs.filter((r) => r.delete_by && daysUntil(r.delete_by) <= 7).length, "within 7 days, or overdue") +
     stat("Units spent", fmt(runs.reduce((a, r) => a + (r.units || 0), 0)), "latest snapshot of each run");
 }
 
@@ -361,7 +410,39 @@ function statusPill(s, msg) {
   return `<span class="pill ${cls}" title="${esc(msg || "")}">${esc(s || "—")}</span>`;
 }
 
+// ---------- API key ----------
+$("#b-key").onclick = async () => {
+  $("#k-err").textContent = "";
+  $("#b-key").disabled = true; $("#b-key").textContent = "Testing…";
+  try {
+    await api("key", {key: $("#k-key").value});
+    $("#k-key").value = "";
+    await refreshState();
+    show("new");
+  } catch (e) { $("#k-err").textContent = e.message; }
+  $("#b-key").disabled = false; $("#b-key").textContent = "Test and save";
+};
+$("#k-key").onkeydown = (ev) => { if (ev.key === "Enter") $("#b-key").click(); };
+
 // ---------- new run form ----------
+let targetsTimer = null;
+function checkTargets() {
+  clearTimeout(targetsTimer);
+  targetsTimer = setTimeout(async () => {
+    const lines = $("#f-targets").value.split("\n");
+    let rows;
+    try { rows = (await api("targets", {lines, allow_search: $("#f-search").checked})).lines; } catch (e) { return; }
+    const count = (k) => rows.filter((r) => r.kind === k).length;
+    const parts = [["video", "video"], ["channel", "channel"], ["playlist", "playlist"], ["search", "search"]]
+      .filter(([k]) => count(k)).map(([k, l]) => `${count(k)} ${l}${count(k) > 1 ? (l === "search" ? "es" : "s") : ""}`);
+    const bad = rows.find((r) => r.error);
+    $("#f-targets-hint").innerHTML = (parts.length ? esc(parts.join(", ")) : "") +
+      (bad ? `${parts.length ? " · " : ""}<span class="err">Line ${bad.line}: ${esc(bad.error)}</span>` : "");
+  }, 250);
+}
+$("#f-targets").oninput = checkTargets;
+$("#f-search").onchange = checkTargets;
+
 function fillForm(d) {
   const now = new Date();
   $("#f-name").value = "run-" + now.toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
@@ -442,14 +523,23 @@ async function startRun() {
 }
 
 // ---------- runs list ----------
+const daysUntil = (day) => Math.ceil((Date.parse(day + "T23:59:59Z") - Date.now()) / 864e5);
+function deadlinePill(day) {
+  if (!day) return "";
+  const left = daysUntil(day);
+  if (left < 0) return `<span class="pill critical">overdue since ${esc(day)}</span>`;
+  if (left <= 7) return `<span class="pill warning">${esc(day)}</span>`;
+  return esc(day);
+}
 function renderRuns() {
   if (!state) return;
   if (!state.runs.length) { $("#runs-table").innerHTML = '<p class="muted">No runs yet.</p>'; return; }
   $("#runs-table").innerHTML = `<table><tr><th>name</th><th>snapshot</th><th>status</th>
-    <th class="num">units</th><th>created</th><th></th></tr>` + state.runs.map((r) =>
+    <th class="num">units</th><th>created</th><th>refresh or delete by</th><th></th></tr>` + state.runs.map((r) =>
     `<tr class="click" data-name="${esc(r.name)}"><td>${esc(r.name)}</td><td>${r.seq ?? ""}</td>
      <td>${statusPill(state.job.busy && state.job.run === r.name ? "running" : r.status, r.message)}</td>
      <td class="num">${fmt(r.units)}</td><td>${esc((r.created_at || "").slice(0, 16).replace("T", " "))}</td>
+     <td>${deadlinePill(r.delete_by)}</td>
      <td class="muted">${esc(r.message || "")}</td></tr>`).join("") + "</table>";
   document.querySelectorAll("#runs-table tr.click").forEach((tr) => tr.onclick = () => openRun(tr.dataset.name));
 }
@@ -476,17 +566,22 @@ async function loadRun() {
   const latest = d.snapshots[d.snapshots.length - 1];
   $("#d-msg").innerHTML = `${d.snapshot.message ? esc(d.snapshot.message) + " · " : ""}Started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC.
     <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}.`;
+  const older = d.snapshots.slice(0, -1).filter((s) => s.delete_by && daysUntil(s.delete_by) <= 7);
+  $("#d-older").classList.toggle("hidden", !older.length);
+  if (older.length) $("#d-older").textContent = `A refresh does not renew older snapshots: snapshot${older.length > 1 ? "s" : ""} ${older.map((s) => s.seq).join(", ")} must go by ${older[0].delete_by}. Use Delete…, then Delete older snapshots.`;
   const sum = (k) => (d.report.comments[k] || 0) + (d.report.replies[k] || 0);
   $("#d-strip").innerHTML = stat("Collected", fmt(sum("collected")), `${fmt(d.report.replies.collected || 0)} replies`) +
     stat("Kept after filtering", fmt(sum("kept"))) +
     stat("Videos", d.containers.length, `${d.containers.filter((c) => c.phase === "done").length} finished`) +
-    stat("Units spent", fmt(d.snapshot.units), `snapshot ${d.snapshot.seq} of ${d.snapshots.length}`);
+    stat("Units spent", fmt(d.snapshot.units), `snapshot ${d.snapshot.seq}` + (d.snapshots.length > 1 ? `, ${d.snapshots.length} kept` : ""));
   const seqSel = $("#d-seq");
   seqSel.classList.toggle("hidden", d.snapshots.length < 2);
   seqSel.innerHTML = d.snapshots.map((s) => `<option value="${s.seq}" ${s.seq === d.snapshot.seq ? "selected" : ""}>snapshot ${s.seq}</option>`).join("");
   $("#b-pause").disabled = !running || state.job.stopping;
   $("#b-resume").disabled = running || latest.status === "done" || (state && state.job.busy);
   $("#b-refresh").disabled = running || latest.status !== "done" || (state && state.job.busy);
+  $("#b-delete").disabled = running;
+  $("#b-del-older").classList.toggle("hidden", d.snapshots.length < 2);
 
   $("#d-progress").innerHTML = `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
     <th class="num">comments</th><th class="num">replies</th></tr>` + d.containers.map((c) => {
@@ -541,6 +636,32 @@ $("#b-export").onclick = async () => {
       excel: $("#e-excel").checked, seq: currentSeq ? Number(currentSeq) : null});
     $("#e-out").innerHTML = `Written to <code>${esc(r.path)}</code> (data, exclusion_report.json, run_manifest.json, codebook.md).`;
   } catch (e) { $("#e-out").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+$("#b-delete").onclick = () => $("#d-delete").classList.toggle("hidden");
+$("#b-del-cancel").onclick = () => $("#d-delete").classList.add("hidden");
+$("#b-del-run").onclick = async () => {
+  const name = current;
+  try {
+    const r = await api("delete", {name, exports: $("#del-exports").checked});
+    current = null; currentSeq = ""; shownRunning = false;
+    history.replaceState(null, "", "#runs");
+    $("#d-delete").classList.add("hidden");
+    $("#nav-detail").classList.add("hidden");
+    await refreshState();
+    show("runs");
+    $("#runs-msg").textContent = `Deleted ${name}: ${r.snapshots} snapshot(s), ${r.exports.length} export folder(s).`;
+    $("#runs-msg").classList.remove("hidden");
+  } catch (e) { $("#d-err").textContent = e.message; }
+};
+$("#b-del-older").onclick = async () => {
+  try {
+    const r = await api("delete_older", {name: current, exports: $("#del-exports").checked});
+    currentSeq = "";
+    $("#d-delete").classList.add("hidden");
+    await refreshState();
+    await loadRun(); loadExplore();
+    $("#d-msg").append(` Deleted ${r.snapshots} older snapshot(s) and ${r.exports.length} export folder(s).`);
+  } catch (e) { $("#d-err").textContent = e.message; }
 };
 async function act(path, body) {
   try { await api(path, body); $("#d-err").textContent = ""; } catch (e) { $("#d-err").textContent = e.message; }
@@ -784,7 +905,9 @@ async function tick() {
   await refreshState();
   fillForm(state.defaults);
   const linked = decodeURIComponent((location.hash.match(/^#run=(.+)$/) || [])[1] || "");
-  if (location.hash === "#quota") show("quota");
+  if (!state.has_key) show("key");
+  else if (location.hash === "#key") show("key");
+  else if (location.hash === "#quota") show("quota");
   else if (location.hash === "#runs") show("runs");
   else if (linked && state.runs.some((r) => r.name === linked)) openRun(linked);
   else if (state.job.busy) openRun(state.job.run);

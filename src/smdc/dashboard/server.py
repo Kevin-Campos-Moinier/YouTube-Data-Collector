@@ -8,6 +8,8 @@ they share the daily quota); the page polls for progress.
 import dataclasses
 import datetime as dt
 import json
+import os
+import re
 import threading
 import traceback
 import urllib.parse
@@ -15,10 +17,10 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .. import config, pipeline
+from .. import config, net, pipeline, retention, sources
 from ..budget import Budget
 from ..export import export
-from ..sources import get_source
+from ..sources import check_key, get_source
 
 PAGE = Path(__file__).with_name("index.html")
 # The page's stylesheet, fonts and icons: only these types, and only from this folder.
@@ -27,6 +29,8 @@ UI_TYPES = {".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2"
 # A page from another site can point its own domain at 127.0.0.1 (DNS rebinding) and then
 # read the API as same-origin; such requests carry that domain in Host, so they are refused.
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
+MAX_BODY = 1_000_000                   # every request this page sends fits well within this
+API_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{20,100}$")
 
 
 class Runner:
@@ -58,7 +62,8 @@ class Runner:
             pipeline.run_until_done(factory, budget, wait, lambda m: store.log(run_id, "info", m),
                                     self.stop)
         except Exception as e:  # surface it in the event log instead of dying silently
-            store.log(run_id, "error", f"{type(e).__name__}: {e}")
+            store.log(run_id, "error", sources.explain_error(e) if isinstance(e, net.HttpError)
+                      else f"{type(e).__name__}: {e}")
             traceback.print_exc()
 
     def pause(self) -> None:
@@ -91,10 +96,13 @@ class Api:
     # -- reads -------------------------------------------------------------------
 
     def get_state(self, q):
-        return {"runs": self.store.runs(), "budget": self._budget().status(),
+        runs = [{**r, "delete_by": retention.delete_by(r["oldest_at"])} for r in self.store.runs()]
+        return {"runs": runs, "budget": self._budget().status(),
                 "job": self.runner.state(), "defaults": config.from_dict(
                     {"name": "x", "targets": ["x"]}).to_dict(),
-                "candidates": config.DEFAULT_CANDIDATES}
+                "candidates": config.DEFAULT_CANDIDATES,
+                "has_key": bool(os.environ.get("YOUTUBE_API_KEY", "").strip()),
+                "key_file": str(config.user_env_path())}
 
     def get_run(self, q):
         run, snap, snaps = self._snap(q["name"], q.get("seq"))
@@ -104,11 +112,12 @@ class Api:
         for c in containers:
             c["replies_left"] = len(self.store.threads_needing_replies(
                 sid, c["container_id"], cfg["collect"]["max_replies"])) if c["phase"] == "replies" else 0
+        snaps = [{**s, "delete_by": retention.snapshot_delete_by(s)} for s in snaps]
         return {"run": run, "config": cfg, "snapshots": snaps, "snapshot": snap,
                 "containers": containers, "report": self.store.report(sid),
                 "coverage": pipeline.coverage(self.store, run["run_id"], sid),
                 "events": self.store.events(run["run_id"], 40),
-                "retention": _plus_days(snaps[-1]["finished_at"] or snaps[-1]["started_at"], 30)}
+                "retention": snaps[-1]["delete_by"]}
 
     def get_quota(self, q):
         b = self._budget()
@@ -142,9 +151,10 @@ class Api:
 
     def get_diff(self, q):
         run, snap, snaps = self._snap(q["name"], q.get("seq"))
-        if snap["seq"] == 1:
+        earlier = [s for s in snaps if s["seq"] < snap["seq"]]  # older snapshots may have been deleted
+        if not earlier:
             return {"available": False}
-        prev = next(s for s in snaps if s["seq"] == snap["seq"] - 1)
+        prev = earlier[-1]
         sid, pid = snap["snapshot_id"], prev["snapshot_id"]
         matched = self.store.q("""SELECT COUNT(*) AS n FROM items n JOIN items p ON p.item_id = n.item_id
                                   AND p.snapshot_id = :p WHERE n.snapshot_id = :s AND n.selected = 1""",
@@ -178,6 +188,7 @@ class Api:
     def post_plan(self, body):
         cfg = self._cfg(body)
         self.store.check_new_name(cfg.name)
+        sources.validate_targets(cfg)  # before the key, so that a mistake in a line is what gets reported
         budget = Budget(self.store, cfg.source, cfg.daily_units)
         containers, est = pipeline.plan(get_source(cfg.source, budget), cfg)
         self.plans[self._plan_key(cfg)] = containers
@@ -209,6 +220,30 @@ class Api:
         self.runner.start(run_id, bool(body.get("wait")))
         return {"ok": True}
 
+    def post_targets(self, body):
+        return {"lines": sources.classify_targets("youtube", body.get("lines", []), bool(body.get("allow_search")))}
+
+    def post_key(self, body):
+        """Tries a key, then saves it. The key is never sent back, logged or kept in an error."""
+        key = str(body.get("key", "")).strip()
+        if not API_KEY_RE.match(key):
+            raise ValueError("that does not look like an API key: it is one long word of letters, digits, - and _")
+        check_key("youtube", key, self._budget())
+        config.save_api_key(key)
+        return {"ok": True}
+
+    def _not_collecting(self, name: str) -> None:
+        if self.runner.busy() and self.runner.run_name == self.store.run(name)["name"]:
+            raise RuntimeError("this run is collecting: pause it first")
+
+    def post_delete(self, body):
+        self._not_collecting(body["name"])
+        return retention.delete_run(self.store, self.ctx.data, body["name"], bool(body.get("exports", True)))
+
+    def post_delete_older(self, body):
+        self._not_collecting(body["name"])
+        return retention.delete_older_snapshots(self.store, self.ctx.data, body["name"], bool(body.get("exports", True)))
+
     def post_pause(self, body):
         self.runner.pause()
         return {"ok": True}
@@ -234,13 +269,6 @@ class Api:
         return {"path": str(out)}
 
 
-def _plus_days(ts: str | None, days: int) -> str | None:
-    if not ts:
-        return None
-    t = dt.datetime.fromisoformat(ts.replace("Z", "+00:00")) + dt.timedelta(days=days)
-    return t.strftime("%Y-%m-%d")
-
-
 def make_handler(api: Api):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):  # keep the terminal for collection logs
@@ -264,6 +292,8 @@ def make_handler(api: Api):
                 out, code = fn(arg), 200
             except (KeyError, ValueError, RuntimeError, StopIteration) as e:
                 out, code = {"error": str(e.args[0]) if e.args else type(e).__name__}, 400
+            except net.HttpError as e:
+                out, code = {"error": sources.explain_error(e)}, 400
             except Exception as e:
                 traceback.print_exc()
                 out, code = {"error": f"{type(e).__name__}: {e}"}, 500
@@ -298,10 +328,23 @@ def make_handler(api: Api):
             fn = getattr(api, "post_" + self.path.removeprefix("/api/"), None)
             if not self.path.startswith("/api/") or fn is None:
                 return self._send(404, b"not found", "text/plain")
-            if self.headers.get("Origin", "").split("//")[-1] not in ("", self.headers.get("Host")):
+            origin = self.headers.get("Origin", "").split("//")[-1]
+            if origin not in ("", self.headers.get("Host")):
                 return self._send(403, b"cross-origin request refused", "text/plain")
-            n = int(self.headers.get("Content-Length") or 0)
-            self._json(fn, json.loads(self.rfile.read(n) or b"{}"))
+            if fn == api.post_key and not origin:  # a page always says where it comes from
+                return self._send(403, b"this request must come from the dashboard", "text/plain")
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                n = -1
+            if not 0 <= n <= MAX_BODY:
+                self.close_connection = True
+                return self._send(413, b"request too large", "text/plain")
+            try:
+                body = json.loads(self.rfile.read(n) or b"{}")
+            except ValueError:
+                return self._send(400, b"not JSON", "text/plain")
+            self._json(fn, body)
 
     return Handler
 

@@ -9,7 +9,7 @@ for estimates, the dashboard gauge and the reset countdown.
 import datetime as dt
 from zoneinfo import ZoneInfo
 
-from .store import Store
+from .store import DELETED_SNAPSHOT, Store
 
 
 class Budget:
@@ -66,7 +66,8 @@ class Budget:
                 per_day[day] += r["units"]
             if day == today:
                 endpoints[r["endpoint"]] = endpoints.get(r["endpoint"], 0) + r["units"]
-                name = r["run"] or "(checks before a run)"
+                name = r["run"] or ("(deleted runs)" if r["snapshot_id"] == DELETED_SNAPSHOT
+                                    else "(checks before a run)")
                 runs[name] = runs.get(name, 0) + r["units"]
         return {"days": [{"day": d, "units": u} for d, u in per_day.items()],
                 "endpoints": endpoints, "runs": runs}

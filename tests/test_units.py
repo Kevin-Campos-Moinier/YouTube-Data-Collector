@@ -6,9 +6,9 @@ import urllib.error
 
 import pytest
 
-from smdc import config, export, net, text
+from smdc import config, export, net, retention, sources, text
 from smdc.privacy import load_secret, pseudonymize, redact_mentions
-from smdc.sources.youtube import parse_video_id
+from smdc.sources.youtube import classify_target, explain_http_error, parse_video_id
 
 
 def test_non_latin_scripts_survive_emoji_removal():
@@ -149,3 +149,81 @@ def test_load_dotenv_first_file_wins(monkeypatch, tmp_path):
     user.write_text("YOUTUBE_API_KEY=new\n")
     config.load_dotenv(user, old)
     assert os.environ["YOUTUBE_API_KEY"] == "new"
+
+
+@pytest.mark.parametrize("line,want", [
+    ("aaaaaaaaaaa", ("video", "aaaaaaaaaaa")),
+    ("W2Wnvvj33Wo   # a comment", ("video", "W2Wnvvj33Wo")),
+    ("https://youtu.be/bbbbbbbbbbb", ("video", "bbbbbbbbbbb")),
+    ("channel:@PlayStation", ("channel", "@PlayStation")),
+    ("@PlayStation", ("channel", "@PlayStation")),
+    ("https://www.youtube.com/@name", ("channel", "@name")),
+    ("https://www.youtube.com/channel/UCabc", ("channel", "UCabc")),
+    ("youtube.com/playlist?list=PLx", ("playlist", "PLx")),
+    ("playlist:PL1", ("playlist", "PL1")),
+    ("search:star wars", ("search", "star wars")),
+    ("# just a note", (None, None)),
+    ("   ", (None, None)),
+    ("search:", ("invalid", None)),
+    ("channel:", ("invalid", None)),
+    ("playlist:", ("invalid", None)),
+    ("not a video !!", ("invalid", None)),
+    ("https://example.com/x", ("invalid", None)),
+    ("http://[bad", ("invalid", None)),
+    ("https://www.youtube.com/channel", ("invalid", None)),
+])
+def test_classify_target_needs_no_key_and_no_network(line, want):
+    assert classify_target(line) == want
+
+
+def test_classify_targets_says_which_line_is_wrong():
+    rows = sources.classify_targets("youtube", ["aaaaaaaaaaa", "", "oops", "search:x"], allow_search=False)
+    assert [r["kind"] for r in rows] == ["video", None, None, "search"]
+    assert "'oops'" in rows[2]["error"] and "allow search" in rows[3]["error"] and rows[0]["error"] is None
+
+
+def test_validate_targets_refuses_a_bad_line():
+    cfg = config.from_dict({"name": "x", "targets": ["aaaaaaaaaaa", "oops"]})
+    with pytest.raises(ValueError, match="oops"):
+        sources.validate_targets(cfg)
+
+
+# A real answer from the API to a made-up key.
+BAD_KEY = {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "API key not valid.",
+                     "errors": [{"reason": "badRequest"}], "details": [{"reason": "API_KEY_INVALID"}]}}
+
+
+def test_errors_say_what_to_do():
+    assert "not valid" in explain_http_error(net.HttpError(400, "badRequest", BAD_KEY))
+    assert "enable it" in explain_http_error(net.HttpError(403, "accessNotConfigured"))
+    assert "restrictions" in explain_http_error(net.HttpError(403, "ipRefererBlocked"))
+    assert "midnight" in explain_http_error(net.HttpError(403, "quotaExceeded"))
+    assert "internet" in explain_http_error(net.HttpError(0, "URLError"))
+    assert "418" in explain_http_error(net.HttpError(418, "teapot"))
+
+
+def test_missing_key_message_gives_the_way_out(monkeypatch):
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="dashboard"):
+        sources.get_source("youtube", None)
+
+
+def test_save_api_key_keeps_other_lines_and_is_private(tmp_path, monkeypatch):
+    env = tmp_path / "conf" / ".env"
+    monkeypatch.setenv("SMDC_ENV", str(env))
+    monkeypatch.setenv("YOUTUBE_API_KEY", "")
+    env.parent.mkdir()
+    env.write_text("# a note\nYOUTUBE_API_KEY=old\nSMDC_SECRET=s3\n")
+    assert config.save_api_key("newkey") == env
+    lines = env.read_text().splitlines()
+    assert "YOUTUBE_API_KEY=newkey" in lines and "YOUTUBE_API_KEY=old" not in lines
+    assert "# a note" in lines and "SMDC_SECRET=s3" in lines
+    assert os.environ["YOUTUBE_API_KEY"] == "newkey"
+    if os.name == "posix":
+        assert env.stat().st_mode & 0o777 == 0o600
+    assert not env.with_name(".env.tmp").exists()
+
+
+def test_delete_by_is_thirty_days_after_the_snapshot():
+    assert retention.delete_by("2026-01-01T10:00:00Z") == "2026-01-31"
+    assert retention.delete_by(None) is None
