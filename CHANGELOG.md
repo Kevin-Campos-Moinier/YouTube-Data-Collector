@@ -53,6 +53,8 @@ All notable changes to this project are listed here. The format follows
   says that the quota is used up and when it comes back.
 - Once YouTube has said the quota is out, the pages say 0 units left for the rest of the day. They used to go on showing
   the local count, which only sees this tool's calls.
+- A run stopped for quota went on saying the quota would reset the next day once the reset had passed, and for two
+  minutes while waiting to start again. It now says the quota is back.
 - Searches follow YouTube's rules since June 2026: their own limit of 100 calls a day instead of 100 units each. They no
   longer eat into the units shown on the Quota page, which counts them apart. Reaching the limit says so at once instead
   of retrying for a minute and showing a bare error.

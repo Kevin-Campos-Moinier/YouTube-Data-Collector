@@ -815,12 +815,15 @@ function renderQuotaNotice() {
   if (!quotaStopped || !state) return;
   const reset = new Date(state.budget.reset), ms = reset - new Date();
   const when = `${reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})} your time, in ${Math.floor(ms / 3.6e6)}h${String(Math.floor(ms % 3.6e6 / 6e4)).padStart(2, "0")}`;
+  const back = !state.budget.refused;  // the reset has passed since YouTube refused
   const text = quotaStopped === "waiting"
-    ? `Waiting for the quota: it resets ${when}. The collection goes on by itself as long as the terminal window stays open.`
-    : `The daily quota ran out. Nothing collected is lost. It resets ${when}.`;
+    ? (back ? "The quota is back: the collection starts again within two minutes."
+      : `Waiting for the quota: it resets ${when}. The collection goes on by itself as long as the terminal window stays open.`)
+    : (back ? "The quota is back: press Resume to go on. Nothing collected was lost."
+      : `The daily quota ran out. Nothing collected is lost. It resets ${when}.`);
   if (box.dataset.text === text) return;
   box.dataset.text = text;
-  box.innerHTML = `${esc(text)}${quotaStopped === "stopped" ? ' <button class="btn" id="b-wait">Continue automatically after the reset</button>' : ""}`;
+  box.innerHTML = `${esc(text)}${quotaStopped === "stopped" && !back ? ' <button class="btn" id="b-wait">Continue automatically after the reset</button>' : ""}`;
   const go = $("#b-wait");
   if (go) go.onclick = () => act("resume", {name: current, wait: true});
 }

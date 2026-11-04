@@ -339,6 +339,11 @@ try {
   check("quota: not shown as done", !(await status()).includes("done"), await status());
   check("quota: what was collected is kept", /Collected\s+[1-9]/.test(await text("#d-strip")), await text("#d-strip"));
   check("quota: Resume offered, Refresh not", await ev(`!document.querySelector("#b-resume").disabled && document.querySelector("#b-refresh").disabled`));
+  const backNotice = (mode) => ev(`(() => { const r = state.budget.refused, q = quotaStopped; state.budget.refused = false; quotaStopped = ${JSON.stringify(mode)}; renderQuotaNotice();
+    const box = document.querySelector("#d-quota"), out = box.innerText + (box.querySelector("button") ? " [button]" : "");
+    state.budget.refused = r; quotaStopped = q; renderQuotaNotice(); return out; })()`);
+  check("the next day: a run stopped for quota says the quota is back", /quota is back: press Resume/.test(await backNotice("stopped")) && !/resets|button/.test(await backNotice("stopped")), await backNotice("stopped"));
+  check("just after the reset: a waiting run says it starts again", /starts again/.test(await backNotice("waiting")) && !/resets/.test(await backNotice("waiting")), await backNotice("waiting"));
   await shot("quota-out");
   await click("#b-resume"); await sleep(600);
   check("resume with no quota left: stops again, no crash", await until(stopped, 20000), await status());
@@ -354,6 +359,7 @@ try {
   await sleep(2200);
   writeFileSync(process.env.RESET_FLAG, "");
   await click("#b-resume");
+  check("after the reset: running again, the notice is gone", await until(`/running|done/.test(document.querySelector("#d-status").innerText) && document.querySelector("#d-quota").classList.contains("hidden")`, 15000), await status());
   check("after the reset: resume finishes the run", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());
   await sleep(2500);
   check("after the reset: every video finished", /2 finished/.test(await text("#d-strip")), await text("#d-strip"));
