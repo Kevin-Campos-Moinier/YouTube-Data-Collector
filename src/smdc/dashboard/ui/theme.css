@@ -138,6 +138,7 @@ button, select, input, textarea { font: inherit; color: var(--ink); }
 @media (max-width: 720px) {
   .ui-header { padding: 10px 14px; }
   .ui-tabs { flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; order: 3; }
+  .ui-tabs.more { mask-image: linear-gradient(to right, var(--ink) calc(100% - 28px), transparent); }
   .ui-header { gap: 8px 10px; }
   .ui-brand { font-size: 19px; gap: 8px; }
   .ui-brand .ui-chip-tool { width: 28px; height: 28px; border-radius: 8px; }
