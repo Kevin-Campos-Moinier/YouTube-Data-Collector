@@ -567,7 +567,7 @@ function setForm(d) {
 }
 function fillForm(d) {
   $("#f-name").value = autoName();
-  setForm(d);
+  setForm({...d, targets: []});     // the defaults hold a placeholder target, only there to build them
 }
 function langChips(sel, all, on) {
   $(sel).innerHTML = all.map((l) => `<label title="${esc(l)}"><input type="checkbox" value="${esc(l)}" ${on.includes(l) ? "checked" : ""}>${esc(langName(l))}</label>`).join("");
@@ -728,6 +728,8 @@ async function loadRun() {
   catch (e) { $("#d-err").textContent = e.message; return; }
   $("#d-err").textContent = "";
   const running = state && state.job.busy && state.job.run === current;
+  // However it ended, even between two refreshes or during a click on Pause, the comments are now all there.
+  if (shownRunning && !running) setTimeout(loadExplore);
   shownRunning = !!running;
   $("#d-name").textContent = d.run.name;
   const stopping = running && state.job.stopping;
@@ -1178,7 +1180,7 @@ async function tick() {
   if (current && !$("#view-detail").classList.contains("hidden")) {
     // Reload while the page still shows the run as running, even if it stopped between two ticks.
     const busy = state.job.busy && state.job.run === current;
-    if (busy || shownRunning) { await loadRun(); if (!busy) loadExplore(); }
+    if (busy || shownRunning) await loadRun();
   }
 }
 

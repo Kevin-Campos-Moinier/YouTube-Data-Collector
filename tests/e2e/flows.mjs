@@ -1,12 +1,12 @@
 // The dashboard's journeys, by real clicks in Chrome, on the in-memory YouTube. Run through tests/test_e2e.py.
-// Usage: node flows.mjs <port> <port where YouTube runs out of quota> <port with no key yet>
+// Usage: node flows.mjs <port> <port where YouTube runs out of quota> <port with no key yet> <port where YouTube answers at once>
 // Environment: CHROME, RESET_FLAG (created to end the quota), ENV_FILE (the no-key server's .env), SHOTS (optional folder).
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const [FULL, LOW, NOKEY] = process.argv.slice(2), SHOTS = process.env.SHOTS;
+const [FULL, LOW, NOKEY, QUICK] = process.argv.slice(2), SHOTS = process.env.SHOTS;
 const profile = mkdtempSync(join(tmpdir(), "cdp-")), port = 9400 + Math.floor(Math.random() * 200);
 const chrome = spawn(process.env.CHROME || "google-chrome", ["--headless=new", "--no-sandbox", "--disable-gpu", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "about:blank"], { stdio: "ignore" });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -69,6 +69,9 @@ try {
 
   // ---------------------------------------------------------------- what the videos box understands
   await go(FULL, "#new");
+  check("a blank form: the videos box is empty", (await ev(`document.querySelector("#f-targets").value`)) === "", await ev(`document.querySelector("#f-targets").value`));
+  await sleep(500);
+  check("a blank form: no error before anything is typed", (await text("#f-targets-hint")) === "", await text("#f-targets-hint"));
   await val("#f-targets", "aaaaaaaaaaa\nchannel:@x\n");
   check("targets: counted as you type", await until(`document.querySelector("#f-targets-hint").innerText === "1 video, 1 channel"`, 3000), await text("#f-targets-hint"));
   await val("#f-targets", "aaaaaaaaaaa\n# a note\nnot a video !!");
@@ -76,6 +79,16 @@ try {
   await val("#f-targets", "search:cats");
   check("targets: a search needs its box ticked", await until(`document.querySelector("#f-targets-hint").innerText.includes("allow search")`, 3000), await text("#f-targets-hint"));
   await val("#f-targets", "");
+
+  // ---------------------------------------------------------------- a run so short that it ends under a click on Pause
+  await go(QUICK, "#new");
+  await val("#f-name", "brief"); await val("#f-targets", "bbbbbbbbbbb");
+  await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
+  await click("#b-start"); await until(`location.hash === "#run=brief"`, 5000); await sleep(150);
+  await click("#b-pause");
+  check("short run: it ends", await until(`document.querySelector("#d-status").innerText.includes("done")`, 15000), await status());
+  check("short run: the comments appear without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline")`, 5000), await text("#x-sample p"));
+  check("short run: the buttons are right", await ev(`document.querySelector("#b-pause").disabled && !document.querySelector("#b-refresh").disabled`));
 
   // ---------------------------------------------------------------- planning errors
   await go(FULL, "#new");
@@ -133,6 +146,7 @@ try {
   check("resume: finishes", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());
   await sleep(2500);
   const after = await text("#d-strip");
+  check("done: the comments are there without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline") && document.querySelectorAll("#x-langs .b").length > 0`, 4000), await text("#x-sample"));
   check("done: the draft is gone", (await ev(`localStorage.getItem("smdc.draft")`)) === null);
   check("done: the title is back", (await ev(`document.title`)) === "Social Media Data Collector", await ev(`document.title`));
   check("done: figures filled", /Collected\s+[1-9]/.test(after), after);

@@ -47,6 +47,7 @@ All notable changes to this project are listed here. The format follows
 ### Fixed
 
 - A missing file on the command line gave `error: 2`; it now names the file.
+- After a run that ended within a second or two, or under a click on *Pause*, the comments stayed empty until a reload.
 - The dashboard could keep showing a run as "running", with the wrong buttons, after it was paused or finished between
   two refreshes of the page.
 

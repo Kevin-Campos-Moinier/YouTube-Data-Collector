@@ -4,6 +4,7 @@ Usage: fake_dashboard.py PORT DATA_DIR FAIL_AFTER RESET_FLAG
     FAIL_AFTER: YouTube answers quotaExceeded after this many calls (0: never), until the file RESET_FLAG exists.
 A key starting with "bad" is refused. Whether a key is already set comes from the environment, as in real use.
 """
+import os
 import sys
 import time
 from http.server import ThreadingHTTPServer
@@ -23,10 +24,11 @@ port, data, fail_after, flag = int(sys.argv[1]), Path(sys.argv[2]), int(sys.argv
 data.mkdir(parents=True, exist_ok=True)
 fake = FakeYouTube({"aaaaaaaaaaa": make_video("aaaaaaaaaaa", 120), "bbbbbbbbbbb": make_video("bbbbbbbbbbb", 30)})
 calls = [0]
+DELAY = float(os.environ.get("FAKE_DELAY", ".12"))  # 0: a run ends within a second, as a small real one does
 
 
 def slow(*a, **k):
-    time.sleep(.12)
+    time.sleep(DELAY)
     calls[0] += 1
     if fail_after and calls[0] > fail_after and not flag.exists():
         raise net.HttpError(403, "quotaExceeded")

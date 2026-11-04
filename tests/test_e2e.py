@@ -28,10 +28,10 @@ def free_port() -> int:
 def test_journeys(tmp_path):
     flag = tmp_path / "quota-reset"
     procs, ports = [], {}
-    # name, the key set beforehand, YouTube refusing after this many calls
-    for name, key, fail_after in (("full", "KEY", 0), ("low", "KEY", 12), ("nokey", "", 0)):
+    # name, the key set beforehand, YouTube refusing after this many calls, the delay of its answers
+    for name, key, fail_after, delay in (("full", "KEY", 0, ".12"), ("low", "KEY", 12, ".12"), ("nokey", "", 0, ".12"), ("quick", "KEY", 0, "0")):
         ports[name] = free_port()
-        env = {**os.environ, "SMDC_ENV": str(tmp_path / name / "conf" / ".env"), "YOUTUBE_API_KEY": key}
+        env = {**os.environ, "SMDC_ENV": str(tmp_path / name / "conf" / ".env"), "YOUTUBE_API_KEY": key, "FAKE_DELAY": delay}
         procs.append(subprocess.Popen([sys.executable, str(HERE / "fake_dashboard.py"), str(ports[name]),
                                        str(tmp_path / name / "data"), str(fail_after), str(flag)], env=env))
     try:
@@ -43,7 +43,7 @@ def test_journeys(tmp_path):
                 time.sleep(.1)
         env = {**os.environ, "CHROME": CHROME, "RESET_FLAG": str(flag), "ENV_FILE": str(tmp_path / "nokey" / "conf" / ".env"),
                "SHOTS": os.environ.get("SMDC_E2E_SHOTS", "")}
-        r = subprocess.run(["node", str(HERE / "flows.mjs"), str(ports["full"]), str(ports["low"]), str(ports["nokey"])],
+        r = subprocess.run(["node", str(HERE / "flows.mjs"), str(ports["full"]), str(ports["low"]), str(ports["nokey"]), str(ports["quick"])],
                            env=env, capture_output=True, text=True, timeout=600)
         print(r.stdout)
         assert r.returncode == 0, "\n".join(ln for ln in r.stdout.splitlines() if not ln.startswith("ok"))
