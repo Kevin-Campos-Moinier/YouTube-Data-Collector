@@ -57,6 +57,25 @@ GONE_FIELDS = {"item_id": "Comment sampled in the previous snapshot and no longe
 PRIVATE = ("author_id", "author_name", "text_raw")
 
 
+def preview(store: Store, run_ref: str, kept_only: bool = False, seq: int | None = None, n: int = 5) -> dict:
+    """The first rows an export would hold, and how many there are.
+
+    Returns:
+        {"columns": [...], "rows": [first n rows], "total": rows in the whole export}.
+    """
+    run = store.run(run_ref)
+    cfg = run_config(store, run["run_id"])
+    snaps = store.snapshots(run["run_id"])
+    snap = snaps[-1] if seq is None else next(s for s in snaps if s["seq"] == seq)
+    cols = [c for c in ITEM_FIELDS if cfg.privacy.keep_identifiers or c not in PRIVATE]
+    sel = ", ".join("text_norm AS text" if c == "text" else c for c in cols)
+    where = " AND excluded_reason IS NULL" if kept_only else ""
+    base = f"FROM items WHERE snapshot_id = ? AND selected = 1{where}"
+    rows = store.q(f"SELECT {sel} {base} ORDER BY container_id, thread_id, depth, created_at LIMIT ?",
+                   (snap["snapshot_id"], n))
+    return {"columns": cols, "rows": rows, "total": store.q(f"SELECT COUNT(*) AS n {base}", (snap["snapshot_id"],))[0]["n"]}
+
+
 def export(store: Store, run_ref: str, out_root: Path, fmt: str = "csv", kept_only: bool = False,
            excel: bool = False, seq: int | None = None) -> Path:
     """Writes one snapshot of a run to `out_root/<run>[-s<seq>]/`.

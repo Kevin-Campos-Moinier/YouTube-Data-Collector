@@ -22,8 +22,17 @@ All notable changes to this project are listed here. The format follows
   launch. *Change the API key* is on the Quota page.
 - The videos box says what it understood as you type (`2 videos, 1 channel`), and which line is wrong.
 
+- New run: the videos come first, then three presets (*Quick sample*, *All comments*, *Custom*) with a sentence saying
+  what they do; languages by name; the other options folded away. The draft survives a reload, the run name comes from
+  the first video, and *New run from these settings* starts from an earlier run.
+- A run's page: overall progress with the time left, in the tab's title too; *Stopping…* and *waiting for reset*; why
+  a button is off; when the quota comes back, with *Continue automatically after the reset*.
+- Results: download an export as a .zip, or copy its path, from a list of the run's exports; preview what an export
+  holds; browse comments page by page, sorted by date or likes.
+
 ### Changed
 
+- Changing a setting after the estimate updates the cost for free, and no longer asks to check the videos again.
 - Errors from the API say what to do (key not valid, API not enabled, key restrictions, quota, no connection), in the
   dashboard and on the command line.
 - A mistake in a line of targets is reported before any need for a key or quota.

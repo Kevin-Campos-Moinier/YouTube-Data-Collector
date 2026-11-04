@@ -10,16 +10,20 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
+import tempfile
 import threading
+import time
 import traceback
 import urllib.parse
 import webbrowser
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .. import config, net, pipeline, retention, sources
 from ..budget import Budget
-from ..export import export
+from ..export import export, preview
 from ..sources import check_key, get_source
 
 PAGE = Path(__file__).with_name("index.html")
@@ -29,6 +33,9 @@ UI_TYPES = {".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2"
 # A page from another site can point its own domain at 127.0.0.1 (DNS rebinding) and then
 # read the API as same-origin; such requests carry that domain in Host, so they are refused.
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
+EXPLORE_PAGE = 200
+EXPLORE_ORDER = {"oldest": "created_at", "newest": "created_at DESC", "liked": "like_count DESC, created_at"}
+RESOLVED_FOR = 3600                    # seconds a check of the videos stays good for
 MAX_BODY = 1_000_000                   # every request this page sends fits well within this
 API_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{20,100}$")
 
@@ -80,7 +87,8 @@ class Api:
     def __init__(self, ctx):
         self.ctx, self.store = ctx, ctx.store
         self.runner = Runner(ctx)
-        self.plans: dict[str, list] = {}  # plan key -> resolved containers, reused by run
+        # targets -> (when, resolved containers): checking videos costs quota, changing a setting should not
+        self.resolved: dict[str, tuple[float, list]] = {}
 
     def _budget(self) -> Budget:
         runs = self.store.runs()
@@ -146,8 +154,32 @@ class Api:
             where.append("excluded_reason IS NULL" if q["reason"] == "kept" else "excluded_reason = ?")
             args += [] if q["reason"] == "kept" else [q["reason"]]
         extra = "".join(" AND " + w for w in where)
-        sample = self.store.q(f"SELECT {cols} {base}{extra} ORDER BY created_at LIMIT 200", args)
-        return {"timeline": timeline, "langs": langs, "top": top, "sample": sample}
+        order = EXPLORE_ORDER.get(q.get("sort", "oldest"), EXPLORE_ORDER["oldest"])
+        offset = max(0, int(q.get("offset") or 0))
+        sample = self.store.q(f"SELECT {cols} {base}{extra} ORDER BY {order} LIMIT {EXPLORE_PAGE} OFFSET {offset}", args)
+        total = self.store.q(f"SELECT COUNT(*) AS n {base}{extra}", args)[0]["n"]
+        return {"timeline": timeline, "langs": langs, "top": top, "sample": sample,
+                "total": total, "offset": offset, "page": EXPLORE_PAGE}
+
+    def get_exports(self, q):
+        run = self.store.run(q["name"])
+        return {"exports": retention.list_exports(self.ctx.data / "exports", run["name"],
+                                                  self.store.snapshots(run["run_id"]))}
+
+    def get_preview(self, q):
+        return preview(self.store, q["name"], q.get("kept") == "1", int(q["seq"]) if q.get("seq") else None)
+
+    def export_folder(self, name: str, folder: str) -> Path:
+        """An export folder of this run, by the name shown in the list.
+
+        Raises:
+            KeyError: Not one of this run's exports: nothing else in the data folder can be asked for.
+        """
+        run = self.store.run(name)
+        for path in retention.exports_of(self.ctx.data / "exports", run["name"], self.store.snapshots(run["run_id"])):
+            if path.name == folder:
+                return path
+        raise KeyError(f"no export named {folder!r}")
 
     def get_diff(self, q):
         run, snap, snaps = self._snap(q["name"], q.get("seq"))
@@ -182,25 +214,34 @@ class Api:
         return config.from_dict(body["config"])
 
     @staticmethod
-    def _plan_key(cfg: config.Config) -> str:
-        return json.dumps([cfg.source, cfg.targets, dataclasses.asdict(cfg.collect)], sort_keys=True)
+    def _targets_key(cfg: config.Config) -> str:
+        return json.dumps([cfg.source, cfg.targets, cfg.collect.max_videos_per_target, cfg.collect.allow_search])
+
+    def _resolved(self, cfg: config.Config) -> list | None:
+        """The videos of these targets if they were checked recently, so that no quota is spent again."""
+        when, containers = self.resolved.get(self._targets_key(cfg), (0.0, None))
+        return containers if time.time() - when < RESOLVED_FOR else None
 
     def post_plan(self, body):
         cfg = self._cfg(body)
         self.store.check_new_name(cfg.name)
         sources.validate_targets(cfg)  # before the key, so that a mistake in a line is what gets reported
         budget = Budget(self.store, cfg.source, cfg.daily_units)
-        containers, est = pipeline.plan(get_source(cfg.source, budget), cfg)
-        self.plans[self._plan_key(cfg)] = containers
-        return {"containers": [dataclasses.asdict(c) for c in containers],
-                "estimate": dataclasses.asdict(est), "budget": budget.status()}
+        source = get_source(cfg.source, budget)
+        containers = self._resolved(cfg)
+        checked = containers is None
+        if checked:
+            containers = source.resolve(source.expand(cfg.targets, cfg.collect))
+            self.resolved[self._targets_key(cfg)] = (time.time(), containers)
+        return {"containers": [dataclasses.asdict(c) for c in containers], "checked": checked,
+                "estimate": dataclasses.asdict(source.estimate(containers, cfg.collect)), "budget": budget.status()}
 
     def post_run(self, body):
         cfg = self._cfg(body)
         self.store.check_new_name(cfg.name)
-        containers = self.plans.get(self._plan_key(cfg))
+        containers = self._resolved(cfg)
         if containers is None:
-            raise ValueError("estimate the run first (the plan changed since the last estimate)")
+            raise ValueError("check the videos first: they changed since the last estimate, or it is over an hour old")
         run_id = pipeline.create_run(self.store, cfg, containers)
         runs_dir = self.ctx.data / "runs"
         runs_dir.mkdir(parents=True, exist_ok=True)
@@ -274,18 +315,39 @@ def make_handler(api: Api):
         def log_message(self, fmt, *args):  # keep the terminal for collection logs
             pass
 
-        def _send(self, code: int, body: bytes, ctype: str) -> None:
+        def _headers(self, code: int, ctype: str, length: int) -> None:
             self.send_response(code)
             self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Length", str(length))
             self.send_header("Cache-Control", "no-store")
             # never inside another site's frame (clickjacking), never content-sniffed
             self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
             self.send_header("X-Frame-Options", "DENY")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Referrer-Policy", "no-referrer")
+
+        def _send(self, code: int, body: bytes, ctype: str) -> None:
+            self._headers(code, ctype, len(body))
             self.end_headers()
             self.wfile.write(body)
+
+        def _download(self, q: dict) -> None:
+            """One export as a .zip, written to a temporary file: exports can be large."""
+            try:
+                folder = api.export_folder(q.get("name", ""), q.get("folder", ""))
+            except KeyError:
+                return self._send(404, b"no such export", "text/plain")
+            with tempfile.TemporaryFile() as tmp:
+                with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+                    for f in sorted(folder.rglob("*")):
+                        if f.is_file() and not f.is_symlink():
+                            z.write(f, Path(folder.name) / f.relative_to(folder))
+                size = tmp.tell()
+                tmp.seek(0)
+                self._headers(200, "application/zip", size)
+                self.send_header("Content-Disposition", f'attachment; filename="{folder.name}.zip"')
+                self.end_headers()
+                shutil.copyfileobj(tmp, self.wfile)
 
         def _json(self, fn, arg) -> None:
             try:
@@ -317,6 +379,8 @@ def make_handler(api: Api):
                 if f.is_relative_to(UI.resolve()) and f.is_file() and f.suffix in UI_TYPES:
                     return self._send(200, f.read_bytes(), UI_TYPES[f.suffix])
                 return self._send(404, b"not found", "text/plain")
+            if u.path == "/download/export":
+                return self._download({k: x[0] for k, x in urllib.parse.parse_qs(u.query).items()})
             fn = getattr(api, "get_" + u.path.removeprefix("/api/"), None)
             if not u.path.startswith("/api/") or fn is None:
                 return self._send(404, b"not found", "text/plain")

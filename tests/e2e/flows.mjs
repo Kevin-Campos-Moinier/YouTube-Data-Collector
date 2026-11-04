@@ -19,8 +19,8 @@ ws.onmessage = ev => {
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m.result ?? { error: m.error }); pending.delete(m.id); return; }
   if (m.method === "Runtime.exceptionThrown") jsErrors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
   if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") jsErrors.push(m.params.args.map(a => a.value ?? a.description).join(" "));
-  if (m.method === "Log.entryAdded" && m.params.entry.level === "error" && !/status of 400/.test(m.params.entry.text)) jsErrors.push(m.params.entry.text);
-  if (m.method === "Network.responseReceived" && m.params.response.status >= 500) badStatus.push(`${m.params.response.status} ${m.params.response.url}`);
+  if (m.method === "Log.entryAdded" && m.params.entry.level === "error" && !/status of 40[04]/.test(m.params.entry.text)) jsErrors.push(m.params.entry.text);
+  if (m.method === "Network.responseReceived" && (m.params.response.status >= 500 || (m.params.response.status === 404 && m.params.response.url.includes("/ui/")))) badStatus.push(`${m.params.response.status} ${m.params.response.url}`);
   if (m.method === "Page.javascriptDialogOpening") { dialogs++; send("Page.handleJavaScriptDialog", { accept: acceptDialog }); }
 };
 for (const d of ["Page", "Runtime", "Log", "Network"]) await send(d + ".enable");
@@ -86,9 +86,27 @@ try {
   await val("#f-name", "first");
   await click("#b-plan"); check("plan: estimate and Start appear", await until(`!!document.querySelector("#b-start")`));
   check("plan: strip of 3 figures", (await ev(`document.querySelectorAll("#plan-out .ui-strip > div").length`)) === 3);
-  await val("#f-max", "60"); await click("#b-start"); await sleep(300);
-  check("settings changed after the estimate: refused", /changed/i.test(await text("#plan-err")), await text("#plan-err"));
+  const cost = () => text("#plan-out .ui-strip > div:nth-child(2) .v");
+  const costBefore = await cost();
+  check("the form: a run name appears with the estimate", await visible("#f-name-row"));
+  await click('input[name=f-preset][value=all]');
+  check("preset All: the sentence says so", /every comment/.test(await text("#f-summary")), await text("#f-summary"));
+  check("a setting changed: the cost follows, for free", await until(`document.querySelector("#plan-out .ui-strip > div:nth-child(2) .v")?.innerText !== ${JSON.stringify(costBefore)}`, 4000), await cost());
+  await click('input[name=f-preset][value=quick]');
+  check("preset Quick: back to the first cost", await until(`document.querySelector("#plan-out .ui-strip > div:nth-child(2) .v")?.innerText === ${JSON.stringify(costBefore)}`, 4000), await cost());
+  await val("#f-max", "60"); await sleep(100);
+  check("an amount edited by hand: Custom", await ev(`document.querySelector("input[name=f-preset]:checked").value === "custom"`));
+  check("the sentence follows", /up to 60 comments/.test(await text("#f-summary")), await text("#f-summary"));
   await val("#f-max", "100");
+  check("back to the same amounts: Quick again", await ev(`document.querySelector("input[name=f-preset]:checked").value === "quick"`));
+  check("advanced options start folded", !(await ev(`document.querySelector("#f-adv").open`)));
+  check("fewer fields on screen than before", (await ev(`[...document.querySelectorAll("#view-new input, #view-new select, #view-new textarea")].filter(e => e.checkVisibility()).length`)) <= 12, String(await ev(`[...document.querySelectorAll("#view-new input, #view-new select, #view-new textarea")].filter(e => e.checkVisibility()).length`)));
+  await val("#f-targets", "aaaaaaaaaaa"); await sleep(200);
+  check("the videos changed: asks to check them again", /check them again/.test(await text("#plan-out")) && !(await ev(`!!document.querySelector("#b-start")`)), await text("#plan-out"));
+  await val("#f-targets", "aaaaaaaaaaa\nbbbbbbbbbbb"); await sleep(200);
+  await go(FULL, "#new");
+  check("draft: the videos survive a reload", (await ev(`document.querySelector("#f-targets").value`)) === "aaaaaaaaaaa\nbbbbbbbbbbb", await ev(`document.querySelector("#f-targets").value`));
+  check("draft: the name typed too", (await ev(`document.querySelector("#f-name").value`)) === "first", await ev(`document.querySelector("#f-name").value`));
 
   // ---------------------------------------------------------------- start, pause, resume
   await click("#b-plan"); await until(`!document.querySelector("#b-plan").disabled && !!document.querySelector("#b-start")`); await sleep(200);
@@ -97,6 +115,11 @@ try {
   check("start: shown as running", await until(`document.querySelector("#d-status").innerText.includes("running")`));
   check("running: Pause on, Resume and Refresh off", await ev(`!document.querySelector("#b-pause").disabled && document.querySelector("#b-resume").disabled && document.querySelector("#b-refresh").disabled`));
   check("running: the header says what is collecting (New run strip)", (await text("#new-strip")).includes("first"));
+  check("running: overall progress and a word about the terminal", /% of this snapshot/.test(await text("#d-overall-text")) && /terminal/.test(await text("#d-overall-text")), await text("#d-overall-text"));
+  check("running: says why the other buttons are off", /once this run is paused/.test(await text("#d-why")), await text("#d-why"));
+  check("running: the tab's title shows the progress", /^\d+% · first$/.test(await ev(`document.title`)), await ev(`document.title`));
+  await until(`/min left|minute left/.test(document.querySelector("#d-overall-text").innerText)`, 9000);
+  console.log("     progress:", await text("#d-overall-text"));
   await click("#b-pause");
   check("pause: the run stops", await until(`!state.job.busy && !document.querySelector("#d-status").innerText.includes("running") && document.querySelector("#d-status").innerText.trim() !== ""`), await status());
   const paused = await status();
@@ -109,6 +132,8 @@ try {
   check("resume: finishes", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());
   await sleep(2500);
   const after = await text("#d-strip");
+  check("done: the draft is gone", (await ev(`localStorage.getItem("smdc.draft")`)) === null);
+  check("done: the title is back", (await ev(`document.title`)) === "Social Media Data Collector", await ev(`document.title`));
   check("done: figures filled", /Collected\s+[1-9]/.test(after), after);
   check("done: Refresh on, Pause and Resume off", await ev(`!document.querySelector("#b-refresh").disabled && document.querySelector("#b-pause").disabled && document.querySelector("#b-resume").disabled`));
   check("done: coverage strip", (await ev(`document.querySelectorAll("#d-coverage .ui-strip > div").length`)) === 3);
@@ -139,7 +164,20 @@ try {
   await val("#x-search", ""); await sleep(800);
   await val("#x-container", "bbbbbbbbbbb"); await sleep(800);
   check("explore: filter by video", await ev(`[...document.querySelectorAll("#x-sample tr td:nth-child(2)")].every(t => t.innerText === "bbbbbbbbbbb")`));
-  await val("#x-container", ""); await val("#x-reason", "other_language"); await click("#x-kept"); await sleep(1000);
+  await val("#x-container", ""); await sleep(800);
+  const firstPage = await text("#x-sample p");
+  check("explore: says which comments are shown", /^1–\d+ of /.test(firstPage), firstPage);
+  check("explore: pages when there are more", await visible("#x-next") && await ev(`document.querySelector("#x-prev").disabled`));
+  const firstCell = await text("#x-sample tr:nth-child(2) td:last-child");
+  await click("#x-next"); await sleep(800);
+  check("explore: the next page", /^201–/.test(await text("#x-sample p")) && await ev(`!document.querySelector("#x-prev").disabled`), await text("#x-sample p"));
+  await click("#x-prev"); await sleep(600);
+  await val("#x-sort", "liked"); await sleep(800);
+  const likes = await ev(`[...document.querySelectorAll("#x-sample tr td:nth-child(4)")].map(t => Number(t.innerText.replace(/,/g, "")))`);
+  check("explore: most liked first", likes.every((v, n) => !n || likes[n - 1] >= v), likes.slice(0, 5).join());
+  await val("#x-sort", "oldest"); await sleep(500);
+  console.log("     first cell:", firstCell.slice(0, 40));
+  await val("#x-reason", "other_language"); await click("#x-kept"); await sleep(1000);
   const excluded = await ev(`document.querySelectorAll("#x-sample tr").length`);
   check("explore: filter by status", await ev(`[...document.querySelectorAll("#x-sample tr td:nth-child(5)")].every(t => t.innerText.includes("other language"))`), String(excluded));
   await val("#x-reason", ""); await click("#x-kept"); await sleep(600);
@@ -164,6 +202,14 @@ try {
   await val("#e-format", "csv"); await click("#e-kept"); await click("#e-excel"); await click("#b-export");
   await until(`!/Exporting/.test(document.querySelector("#e-out").innerText)`, 15000);
   check("export csv, kept only, Excel: written", /Written to/.test(await text("#e-out")), await text("#e-out"));
+  check("exports: listed", await until(`document.querySelectorAll("#e-list tr").length > 1`, 4000));
+  const link = await ev(`document.querySelector("#e-list a[download]").getAttribute("href")`);
+  const dl = await ev(`fetch(${JSON.stringify(link)}).then(async r => [r.status, r.headers.get("content-type"), (await r.arrayBuffer()).byteLength])`);
+  check("exports: the download is a real .zip", dl[0] === 200 && dl[1] === "application/zip" && dl[2] > 100, dl.join());
+  check("exports: a folder outside the list is refused", (await ev(`fetch("/download/export?name=first&folder=..").then(r => r.status)`)) === 404);
+  await ev(`document.querySelector("#e-preview-box").open = true`);
+  check("exports: a preview on request", await until(`document.querySelectorAll("#e-preview tr").length > 2`, 4000), await text("#e-preview"));
+  check("exports: the preview shows no raw identifier", !/text_raw|author_name/.test(await text("#e-preview")));
   await shot("run-done");
 
   // ---------------------------------------------------------------- errors, navigation, addresses, theme
@@ -194,6 +240,13 @@ try {
   await click("#theme");
 
   // ---------------------------------------------------------------- deadlines and deleting
+  await go(FULL, "#run=first"); await until(`document.querySelector("#d-name").innerText === "first"`, 4000); await sleep(500);
+  await click("#b-again"); await sleep(300);
+  check("new run from these settings: the form is filled", (await ev(`document.querySelector("#f-targets").value`)).includes("aaaaaaaaaaa") && await visible("#view-new"));
+  check("new run from these settings: another name", (await ev(`document.querySelector("#f-name").value`)) !== "first");
+  await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
+  check("the name comes from the first video", /^video-aaaaaaaaaaa-\d{8}$/.test(await ev(`document.querySelector("#f-name").value`)), await ev(`document.querySelector("#f-name").value`));
+  await ev(`localStorage.removeItem("smdc.draft")`);
   await go(FULL, "#runs");
   check("runs: a date to refresh or delete by", /\d{4}-\d{2}-\d{2}/.test(await text("#runs-table tr.click td:nth-child(6)")), await text("#runs-table tr.click"));
   await go(FULL, "#run=first"); await until(`document.querySelector("#d-name").innerText === "first"`, 4000); await sleep(800);
@@ -239,6 +292,8 @@ try {
   check("quota: stops by itself", await until(stopped, 40000), await status());
   await sleep(2500);
   console.log("     stopped as:", await status(), "|", (await text("#d-msg")).slice(0, 120));
+  check("quota: the notice says when it comes back", /ran out/.test(await text("#d-quota")) && /your time/.test(await text("#d-quota")), await text("#d-quota"));
+  check("quota: no duplicate of that in the sentence", !/quota exhausted/.test(await text("#d-msg")), await text("#d-msg"));
   check("quota: not shown as done", !(await status()).includes("done"), await status());
   check("quota: what was collected is kept", /Collected\s+[1-9]/.test(await text("#d-strip")), await text("#d-strip"));
   check("quota: Resume offered, Refresh not", await ev(`!document.querySelector("#b-resume").disabled && document.querySelector("#b-refresh").disabled`));
@@ -246,14 +301,15 @@ try {
   await click("#b-resume"); await sleep(600);
   check("resume with no quota left: stops again, no crash", await until(stopped, 20000), await status());
   await sleep(2200);
-  await click("#d-wait"); await click("#b-resume");
-  check("resume and wait for the reset: stays on, waiting", await until(`document.querySelector("#d-status").innerText.includes("running")`, 6000), await status());
+  await click("#b-wait");
+  check("continue after the reset: says it is waiting", await until(`document.querySelector("#d-status").innerText.includes("waiting")`, 8000), await status());
+  check("waiting: the notice says so", /Waiting for the quota/.test(await text("#d-quota")), await text("#d-quota"));
+  await shot("waiting");
   await sleep(2500);
   check("waiting: can be paused", await ev(`!document.querySelector("#b-pause").disabled`));
   await click("#b-pause");
   check("waiting, then pause: stops", await until(stopped, 30000), await status());
   await sleep(2200);
-  await click("#d-wait");
   writeFileSync(process.env.RESET_FLAG, "");
   await click("#b-resume");
   check("after the reset: resume finishes the run", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());

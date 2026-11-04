@@ -53,6 +53,8 @@ button.btn.danger:hover { background: var(--surface-2); }
 button.btn.danger.solid { background: var(--critical); border-color: var(--critical); color: var(--surface); }
 .steps { margin: 0 0 14px; padding-left: 22px; }
 .steps li { margin: 6px 0; }
+.chips label:has(input:checked) { background: var(--tool-soft); color: var(--tool); }
+.pager { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 .notice { background: var(--surface-2); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 14px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; }
@@ -145,25 +147,7 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
   <p class="lede">Say what to collect, check the videos and what it will cost, then start. Nothing is spent on comments before you start, and a run can be paused and resumed.</p>
   <section class="ui-strip" id="new-strip" aria-label="In brief"></section>
   <div class="card">
-    <h2>1. What to collect</h2>
-    <div class="grid">
-      <div><label for="f-name">Run name</label><input type="text" id="f-name">
-        <div class="hint">Letters, digits, - _ . — must be unique.</div></div>
-      <div><label for="f-order">Comment order</label>
-        <select id="f-order">
-          <option value="relevance">Relevance (API ranking — may differ from the website)</option>
-          <option value="time">Newest first</option>
-          <option value="oldest">Oldest first (reads every page: full quota cost)</option>
-        </select></div>
-      <div><label for="f-max">Top-level comments per video</label><input type="number" id="f-max" min="0">
-        <div class="hint">0 = all of them.</div></div>
-      <div><label for="f-maxrep">Replies per comment</label><input type="number" id="f-maxrep" min="0">
-        <label class="check"><input type="checkbox" id="f-replies"> collect replies</label></div>
-      <div><label for="f-since">Only comments posted from</label><input type="date" id="f-since">
-        <div class="hint">Optional. With “newest first”, collection stops at this date.</div></div>
-      <div><label for="f-until">…until (exclusive)</label><input type="date" id="f-until"></div>
-    </div>
-    <h3>Videos</h3>
+    <h2>1. Videos</h2>
     <textarea id="f-targets" aria-label="Videos" aria-describedby="f-targets-hint" placeholder="One per line — any of:
 https://www.youtube.com/watch?v=VLGy63pt9vA
 W2Wnvvj33Wo   # a comment after the ID is fine
@@ -171,36 +155,59 @@ channel:@PlayStation      (latest uploads)
 playlist:PL...
 search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
     <div class="hint" id="f-targets-hint" aria-live="polite"></div>
-    <div class="grid" style="margin-top:8px">
-      <div><label for="f-maxvid">Videos per channel / playlist / search</label><input type="number" id="f-maxvid" min="0"></div>
-      <div><label class="check" style="margin-top:22px"><input type="checkbox" id="f-search"> allow search: targets (costly)</label></div>
-    </div>
+    <label class="check hidden" id="f-search-row"><input type="checkbox" id="f-search"> allow search lines (100 units per 50 results)</label>
   </div>
 
   <div class="card">
-    <h2>2. Text processing &amp; privacy</h2>
-    <label>Keep comments written in</label>
-    <div class="chips" id="f-langs"></div>
-    <div class="hint">None selected = keep every language. Excluded comments are kept in the database with their reason; exports can include or drop them.</div>
-    <div class="grid" style="margin-top:10px">
-      <div><label for="f-conf">Minimum language confidence</label><input type="number" id="f-conf" min="0" max="1" step="0.05"></div>
-      <div><label class="check"><input type="checkbox" id="f-emoji"> remove emoji in clean text</label>
-        <label class="check"><input type="checkbox" id="f-punct"> remove punctuation in clean text</label>
-        <label class="check"><input type="checkbox" id="f-mentions"> replace @handles with @user</label></div>
-      <div><label class="check"><input type="checkbox" id="f-ids"> keep raw user IDs and names</label>
-        <div class="hint">Off: authors become pseudonymous keys (recommended for ethics approval).</div></div>
-      <div><label for="f-workers">Parallel videos</label><input type="number" id="f-workers" min="1" max="16">
-        <label for="f-daily" style="margin-top:6px">Daily quota of your key</label><input type="number" id="f-daily" min="1"></div>
+    <h2>2. What to keep</h2>
+    <div class="chips" role="radiogroup" aria-label="How much to collect">
+      <label><input type="radio" name="f-preset" value="quick"> Quick sample</label>
+      <label><input type="radio" name="f-preset" value="all"> All comments</label>
+      <label><input type="radio" name="f-preset" value="custom"> Custom</label>
     </div>
+    <p class="hint" id="f-summary" aria-live="polite"></p>
+    <h3>Keep comments written in</h3>
+    <div class="chips" id="f-langs"></div>
+    <details id="f-morelangs"><summary class="muted">More languages</summary><div class="chips" id="f-langs-more" style="margin-top:8px"></div></details>
+    <p class="hint" id="f-langs-note" aria-live="polite"></p>
+    <details id="f-adv" style="margin-top:10px"><summary class="muted">More options: amounts, dates, cleaning, privacy</summary>
+      <div class="grid" style="margin-top:10px">
+        <div><label for="f-order">Comment order</label>
+          <select id="f-order">
+            <option value="relevance">Relevance (API ranking — may differ from the website)</option>
+            <option value="time">Newest first</option>
+            <option value="oldest">Oldest first (reads every page: full quota cost)</option>
+          </select></div>
+        <div><label for="f-max">Top-level comments per video</label><input type="number" id="f-max" min="0">
+          <div class="hint">0 = all of them.</div></div>
+        <div><label for="f-maxrep">Replies per comment</label><input type="number" id="f-maxrep" min="0">
+          <label class="check"><input type="checkbox" id="f-replies"> collect replies</label></div>
+        <div><label for="f-maxvid">Videos per channel, playlist or search</label><input type="number" id="f-maxvid" min="0"></div>
+        <div><label for="f-since">Only comments posted from</label><input type="date" id="f-since">
+          <div class="hint">Optional. With “newest first”, collection stops at this date.</div></div>
+        <div><label for="f-until">…until (exclusive)</label><input type="date" id="f-until"></div>
+        <div><label for="f-conf">Minimum language confidence</label><input type="number" id="f-conf" min="0" max="1" step="0.05"></div>
+        <div><label class="check"><input type="checkbox" id="f-emoji"> remove emoji in clean text</label>
+          <label class="check"><input type="checkbox" id="f-punct"> remove punctuation in clean text</label>
+          <label class="check"><input type="checkbox" id="f-mentions"> replace @handles with @user</label></div>
+        <div><label class="check"><input type="checkbox" id="f-ids"> keep raw user IDs and names</label>
+          <div class="hint">Off: authors become pseudonymous keys (recommended for ethics approval).</div></div>
+        <div><label for="f-workers">Parallel videos</label><input type="number" id="f-workers" min="1" max="16"></div>
+        <div><label for="f-daily">Daily quota of your key</label><input type="number" id="f-daily" min="1"></div>
+      </div>
+    </details>
   </div>
 
   <div class="card">
     <h2>3. Check and start</h2>
     <div class="row">
       <button class="btn" id="b-plan">Check videos &amp; estimate cost</button>
-      <span class="muted">Checking costs about 1 unit per 50 videos.</span>
+      <span class="muted">Checking costs about 1 unit per 50 videos. Changing a setting afterwards costs nothing.</span>
     </div>
-    <div id="plan-err" class="err"></div>
+    <div id="plan-err" class="err" role="alert"></div>
+    <div id="f-name-row" class="hidden" style="margin-top:12px"><label for="f-name">Run name</label>
+      <input type="text" id="f-name" style="max-width:360px">
+      <div class="hint">Letters, digits, - _ . — must be unique.</div></div>
     <div id="plan-out"></div>
   </div>
 </section>
@@ -238,6 +245,7 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
     <select id="d-seq" class="hidden" style="width:auto"></select></div>
   <p class="lede" id="d-msg"></p>
   <section class="ui-strip" id="d-strip" aria-label="In brief"></section>
+  <div class="notice hidden" id="d-quota" role="status"></div>
   <p class="notice hidden" id="d-older" role="status"></p>
   <div class="card">
     <div class="row">
@@ -245,8 +253,10 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
       <button class="btn" id="b-resume">Resume</button>
       <label class="check"><input type="checkbox" id="d-wait"> continue after quota reset</label>
       <button class="btn" id="b-refresh" title="Collect the same videos again as a new snapshot">Refresh snapshot</button>
+      <button class="btn" id="b-again" title="Open New run with this run's settings">New run from these settings</button>
       <button class="btn danger" id="b-delete">Delete…</button>
     </div>
+    <p class="hint" id="d-why"></p>
     <div id="d-delete" class="hidden" style="margin-top:12px">
       <p style="margin:0 0 8px">This removes the collected comments from the database for good: it cannot be undone. Exports you moved elsewhere are not touched.</p>
       <label class="check"><input type="checkbox" id="del-exports" checked> also delete this run's exports in the data folder</label>
@@ -261,6 +271,8 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
 
   <div class="card">
     <h2>Progress</h2>
+    <div class="meter" id="d-overall"><i style="width:0"></i></div>
+    <p class="hint" id="d-overall-text" aria-live="polite"></p>
     <div id="d-progress"></div>
   </div>
 
@@ -302,8 +314,13 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
       <select id="x-reason" style="max-width:200px"><option value="">any status</option>
         <option value="kept">kept</option><option value="other_language">other language</option>
         <option value="undetected">undetected</option><option value="empty_after_cleaning">empty after cleaning</option></select>
+      <select id="x-sort" aria-label="Order" style="max-width:160px"><option value="oldest">oldest first</option>
+        <option value="newest">newest first</option><option value="liked">most liked first</option></select>
     </div>
     <div id="x-sample" style="margin-top:8px"></div>
+    <div class="pager hidden" id="x-pager">
+      <button class="btn" id="x-prev">Previous</button><button class="btn" id="x-next">Next</button>
+    </div>
   </div>
 
   <div class="card">
@@ -314,7 +331,9 @@ search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
       <label class="check"><input type="checkbox" id="e-excel"> Excel (; and BOM)</label>
       <button class="btn primary" id="b-export">Export</button>
     </div>
-    <div id="e-out" class="hint"></div>
+    <div id="e-out" class="hint" aria-live="polite"></div>
+    <details id="e-preview-box" style="margin-top:10px"><summary class="muted">Preview what an export holds</summary><div id="e-preview" style="margin-top:8px"></div></details>
+    <div id="e-list" style="margin-top:10px"></div>
   </div>
 
   <div class="card"><h2>Log</h2><div class="log" id="d-log"></div></div>
@@ -333,7 +352,8 @@ const stat = (label, value, note) => `<div><span class="l">${esc(label)}</span><
 const REASONS = {kept: "kept", other_language: "other language", undetected: "language undetected",
   empty_after_cleaning: "empty after cleaning", unprocessed: "not processed yet"};
 
-let state = null, current = null, currentSeq = "", lastPlanKey = null, containerOrder = [], shownRunning = false;
+const BASE_TITLE = document.title;
+let state = null, currentConfig = null, current = null, currentSeq = "", lastPlanKey = null, containerOrder = [], shownRunning = false;
 
 async function api(path, body) {
   const r = await fetch("/api/" + path, body === undefined ? {} :
@@ -405,8 +425,8 @@ function renderSummaries() {
 }
 
 function statusPill(s, msg) {
-  const cls = {done: "good", running: "running", paused: "warning", incomplete: "serious",
-    created: "", unavailable: "warning", error: "critical"}[s] ?? "";
+  const cls = {done: "good", running: "running", paused: "warning", incomplete: "serious", stopping: "warning",
+    "waiting for reset": "warning", created: "", unavailable: "warning", error: "critical"}[s] ?? "";
   return `<span class="pill ${cls}" title="${esc(msg || "")}">${esc(s || "—")}</span>`;
 }
 
@@ -436,29 +456,88 @@ function checkTargets() {
     const parts = [["video", "video"], ["channel", "channel"], ["playlist", "playlist"], ["search", "search"]]
       .filter(([k]) => count(k)).map(([k, l]) => `${count(k)} ${l}${count(k) > 1 ? (l === "search" ? "es" : "s") : ""}`);
     const bad = rows.find((r) => r.error);
+    $("#f-search-row").classList.toggle("hidden", !count("search") && !$("#f-search").checked);
     $("#f-targets-hint").innerHTML = (parts.length ? esc(parts.join(", ")) : "") +
       (bad ? `${parts.length ? " · " : ""}<span class="err">Line ${bad.line}: ${esc(bad.error)}</span>` : "");
   }, 250);
 }
-$("#f-targets").oninput = checkTargets;
-$("#f-search").onchange = checkTargets;
+$("#f-targets").addEventListener("input", checkTargets);
+$("#f-search").addEventListener("change", checkTargets);
 
-function fillForm(d) {
-  const now = new Date();
-  $("#f-name").value = "run-" + now.toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
+const COMMON_LANGS = ["en", "fr", "es", "de", "it", "pt"];
+const PRESETS = {
+  quick: {max_items: 100, order: "relevance", replies: true, max_replies: 10},
+  all: {max_items: 0, order: "time", replies: true, max_replies: 1000},
+};
+const langName = (() => {
+  let names = null;
+  try { names = new Intl.DisplayNames(["en"], {type: "language"}); } catch { /* an old browser: codes it is */ }
+  return (code) => { try { return names ? names.of(code) : code; } catch { return code; } };
+})();
+const draftGet = () => { try { return JSON.parse(localStorage.getItem("smdc.draft") || "null"); } catch { return null; } };
+const draftSet = (v) => { try { v ? localStorage.setItem("smdc.draft", JSON.stringify(v)) : localStorage.removeItem("smdc.draft"); } catch { /* private mode */ } };
+let nameEdited = false;
+
+function autoName() {
+  return "run-" + new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
+}
+// A readable, unique run name from the first video's title.
+function nameFromTitle(title) {
+  const slug = (title || "").normalize("NFD").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase().slice(0, 40).replace(/-+$/, "");
+  const base = `${slug || "run"}-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+  const taken = new Set(state.runs.map((r) => r.name));
+  let name = base;
+  for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
+  return name;
+}
+
+// Puts a run's configuration, or the defaults, into the form.
+function setForm(d) {
   const c = d.collect, p = d.process;
   $("#f-order").value = c.order; $("#f-max").value = c.max_items; $("#f-maxrep").value = c.max_replies;
   $("#f-replies").checked = c.replies; $("#f-maxvid").value = c.max_videos_per_target;
+  $("#f-since").value = (c.since || "").slice(0, 10); $("#f-until").value = (c.until || "").slice(0, 10);
   $("#f-search").checked = c.allow_search; $("#f-conf").value = p.min_confidence;
   $("#f-emoji").checked = p.remove_emoji; $("#f-punct").checked = p.remove_punct;
   $("#f-mentions").checked = p.redact_mentions; $("#f-ids").checked = d.privacy.keep_identifiers;
   $("#f-workers").value = c.workers; $("#f-daily").value = d.daily_units;
-  langChips("#f-langs", state.candidates, p.languages);
+  $("#f-targets").value = (d.targets || []).join("\n");
+  langChips("#f-langs", state.candidates.filter((l) => COMMON_LANGS.includes(l)), p.languages);
+  langChips("#f-langs-more", state.candidates.filter((l) => !COMMON_LANGS.includes(l)), p.languages);
+  $("#f-morelangs").open = p.languages.some((l) => !COMMON_LANGS.includes(l));
+  syncPreset(); noteLangs(); checkTargets();
+}
+function fillForm(d) {
+  $("#f-name").value = autoName();
+  setForm(d);
 }
 function langChips(sel, all, on) {
-  $(sel).innerHTML = all.map((l) => `<label><input type="checkbox" value="${l}" ${on.includes(l) ? "checked" : ""}>${l}</label>`).join("");
+  $(sel).innerHTML = all.map((l) => `<label title="${esc(l)}"><input type="checkbox" value="${esc(l)}" ${on.includes(l) ? "checked" : ""}>${esc(langName(l))}</label>`).join("");
 }
 const checkedLangs = (sel) => [...document.querySelectorAll(sel + " input:checked")].map((i) => i.value);
+const formLangs = () => [...checkedLangs("#f-langs"), ...checkedLangs("#f-langs-more")];
+function noteLangs() {
+  const on = formLangs();
+  $("#f-langs-note").textContent = (on.length ? `Keeping ${on.map(langName).join(", ")}.` : "Keeping every language.") +
+    " Other comments stay in the database with their reason; exports can include or drop them.";
+}
+
+// Which preset the amounts match, and that in a sentence.
+function syncPreset() {
+  const now = {max_items: Number($("#f-max").value), order: $("#f-order").value, replies: $("#f-replies").checked, max_replies: Number($("#f-maxrep").value)};
+  const same = (p) => Object.entries(PRESETS[p]).every(([k, v]) => now[k] === v);
+  const name = same("quick") ? "quick" : same("all") ? "all" : "custom";
+  document.querySelector(`input[name=f-preset][value=${name}]`).checked = true;
+  const comments = now.max_items ? `up to ${fmt(now.max_items)} comments per video` : "every comment of each video";
+  const replies = !now.replies || !now.max_replies ? "no replies" : `up to ${fmt(now.max_replies)} replies per comment`;
+  $("#f-summary").textContent = `Collects ${comments}, with ${replies}, ${{relevance: "by relevance", time: "newest first", oldest: "oldest first"}[now.order]}.`;
+}
+document.querySelectorAll("input[name=f-preset]").forEach((r) => r.onchange = () => {
+  if (r.value === "custom") { $("#f-adv").open = true; syncPreset(); return; }
+  const p = PRESETS[r.value];
+  $("#f-max").value = p.max_items; $("#f-order").value = p.order; $("#f-replies").checked = p.replies; $("#f-maxrep").value = p.max_replies;
+  formChanged();
+});
 
 function formConfig() {
   const num = (id) => Number($(id).value);
@@ -470,13 +549,39 @@ function formConfig() {
       max_replies: num("#f-maxrep"), since: date("#f-since"), until: date("#f-until"),
       workers: num("#f-workers"), keep_raw: true, max_videos_per_target: num("#f-maxvid"),
       allow_search: $("#f-search").checked},
-    process: {...state.defaults.process, languages: checkedLangs("#f-langs"),
+    process: {...state.defaults.process, languages: formLangs(),
       min_confidence: num("#f-conf"), remove_emoji: $("#f-emoji").checked,
       remove_punct: $("#f-punct").checked, redact_mentions: $("#f-mentions").checked},
     privacy: {keep_identifiers: $("#f-ids").checked},
   };
 }
-const planKey = (c) => JSON.stringify([c.targets, c.collect]);
+// The videos the estimate was made on: they cost quota to check, the other settings do not.
+const planKey = (c) => JSON.stringify([c.targets, c.collect.max_videos_per_target, c.collect.allow_search]);
+let replanTimer = null;
+
+// Any change in the form: the draft is saved, and the cost follows if the videos are still the same.
+function formChanged() {
+  syncPreset(); noteLangs();
+  const cfg = formConfig();
+  draftSet({...cfg, nameEdited});
+  if (lastPlanKey === null) return;
+  clearTimeout(replanTimer);
+  if (planKey(cfg) !== lastPlanKey) {
+    lastPlanKey = null;
+    $("#plan-out").innerHTML = '<p class="hint">The videos changed: check them again to get the cost.</p>';
+    $("#f-name-row").classList.add("hidden");
+    return;
+  }
+  replanTimer = setTimeout(async () => {
+    try { $("#plan-err").textContent = ""; renderPlan(await api("plan", {config: formConfig()})); }
+    catch (e) { $("#plan-err").textContent = e.message; }
+  }, 300);
+}
+document.querySelectorAll("#view-new input:not([name=f-preset]), #view-new select, #view-new textarea").forEach((el) => el.addEventListener("change", formChanged));
+document.querySelectorAll("#view-new input[type=text], #view-new input[type=number], #view-new textarea").forEach((el) => el.addEventListener("input", formChanged));
+$("#f-langs").addEventListener("change", formChanged);
+$("#f-langs-more").addEventListener("change", formChanged);
+$("#f-name").addEventListener("input", () => { nameEdited = true; });
 
 $("#b-plan").onclick = async () => {
   const cfg = formConfig();
@@ -485,6 +590,7 @@ $("#b-plan").onclick = async () => {
   try {
     const r = await api("plan", {config: cfg});
     lastPlanKey = planKey(cfg);
+    if (!nameEdited) $("#f-name").value = nameFromTitle((r.containers.find((c) => c.title) || {}).title);
     renderPlan(r);
   } catch (e) { $("#plan-err").textContent = e.message; $("#plan-out").innerHTML = ""; }
   $("#b-plan").disabled = false;
@@ -509,15 +615,19 @@ function renderPlan(r) {
     ${over ? '<p class="err">The low estimate exceeds today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
     <div class="row"><button class="btn primary" id="b-start">Start collection</button>
       <label class="check"><input type="checkbox" id="f-wait" ${over ? "checked" : ""}> continue automatically after each quota reset (keep this page's server running)</label></div>`;
+  $("#f-name-row").classList.remove("hidden");
   $("#b-start").onclick = startRun;
 }
 
 async function startRun() {
   const cfg = formConfig();
-  if (planKey(cfg) !== lastPlanKey) { $("#plan-err").textContent = "Settings changed since the estimate: check again."; return; }
   try {
     await api("run", {config: cfg, wait: $("#f-wait").checked});
+    draftSet(null);
+    nameEdited = false; lastPlanKey = null;
+    $("#plan-out").innerHTML = ""; $("#f-name-row").classList.add("hidden");
     await refreshState();
+    setForm({...state.defaults, targets: []}); $("#f-name").value = autoName();
     openRun(cfg.name);
   } catch (e) { $("#plan-err").textContent = e.message; }
 }
@@ -546,7 +656,7 @@ function renderRuns() {
 
 // ---------- run detail ----------
 function openRun(name) {
-  current = name; currentSeq = "";
+  current = name; currentSeq = ""; exploreOffset = 0; samples = [];
   history.replaceState(null, "", "#run=" + encodeURIComponent(name));
   $("#nav-detail").textContent = name; $("#nav-detail").classList.remove("hidden");
   show("detail");
@@ -562,9 +672,14 @@ async function loadRun() {
   const running = state && state.job.busy && state.job.run === current;
   shownRunning = !!running;
   $("#d-name").textContent = d.run.name;
-  $("#d-status").innerHTML = statusPill(running ? "running" : d.snapshot.status, d.snapshot.message);
+  const stopping = running && state.job.stopping;
+  const waiting = running && !stopping && state.job.wait && d.snapshot.status === "paused";
+  $("#d-status").innerHTML = statusPill(stopping ? "stopping" : waiting ? "waiting for reset" : running ? "running" : d.snapshot.status, d.snapshot.message);
+  currentConfig = d.config;
+  quotaStopped = !stopping && d.snapshot.status === "paused" && /^quota/.test(d.snapshot.message || "") && d.snapshot.seq === d.snapshots[d.snapshots.length - 1].seq ? (waiting ? "waiting" : "stopped") : null;
+  renderQuotaNotice();
   const latest = d.snapshots[d.snapshots.length - 1];
-  $("#d-msg").innerHTML = `${d.snapshot.message ? esc(d.snapshot.message) + " · " : ""}Started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC.
+  $("#d-msg").innerHTML = `${d.snapshot.message && !quotaStopped ? esc(d.snapshot.message) + " · " : ""}Started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC.
     <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}.`;
   const older = d.snapshots.slice(0, -1).filter((s) => s.delete_by && daysUntil(s.delete_by) <= 7);
   $("#d-older").classList.toggle("hidden", !older.length);
@@ -578,9 +693,15 @@ async function loadRun() {
   seqSel.classList.toggle("hidden", d.snapshots.length < 2);
   seqSel.innerHTML = d.snapshots.map((s) => `<option value="${s.seq}" ${s.seq === d.snapshot.seq ? "selected" : ""}>snapshot ${s.seq}</option>`).join("");
   $("#b-pause").disabled = !running || state.job.stopping;
+  $("#b-pause").textContent = stopping ? "Stopping…" : "Pause";
   $("#b-resume").disabled = running || latest.status === "done" || (state && state.job.busy);
   $("#b-refresh").disabled = running || latest.status !== "done" || (state && state.job.busy);
   $("#b-delete").disabled = running;
+  const other = state && state.job.busy && !running;
+  $("#d-why").textContent = other ? `Another run (${state.job.run}) is collecting: only one at a time, because they share the daily quota.`
+    : stopping ? "Finishing the pages in flight, then it stops."
+    : running ? "Resume, Refresh and Delete are available once this run is paused or done."
+    : latest.status !== "done" ? "Refresh is available once this run is finished." : "";
   $("#b-del-older").classList.toggle("hidden", d.snapshots.length < 2);
 
   $("#d-progress").innerHTML = `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
@@ -589,12 +710,12 @@ async function loadRun() {
       const capped = col.order !== "oldest" && col.max_items > 0;
       const target = capped ? Math.min(col.max_items, tot ?? col.max_items) : tot;
       const got = capped ? c.threads : c.threads + c.replies;
-      const pct = c.phase === "done" || c.phase === "replies" ? 100 : target ? Math.min(100, 100 * got / target) : 0;
+      const pct = videoProgress(c, col);
       const bar = c.phase === "replies" ? `comments done · replies: ${fmt(c.replies_left)} threads left`
         : c.phase === "unavailable" ? "" : capped ? `${fmt(c.threads)} of ${fmt(target)} comments`
         : `${fmt(got)} of ~${fmt(tot)} comments + replies`;
       const st = c.phase === "done" ? "done" : c.phase === "unavailable" ? "unavailable"
-        : c.error ? "error" : !running ? "paused" : c.phase === "pending" ? "queued" : "running";
+        : c.error ? "error" : !running ? "paused" : waiting ? "waiting for reset" : c.phase === "pending" ? "queued" : "running";
       const note = c.error || "";
       return `<tr><td class="txt"><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a> ${esc(c.title || "")}</td>
         <td>${statusPill(st)} <span class="muted">${esc(note)}</span></td>
@@ -602,6 +723,7 @@ async function loadRun() {
         <td class="num">${fmt(c.threads)}</td><td class="num">${fmt(c.replies)}</td></tr>`;
     }).join("") + "</table>";
 
+  renderOverall(d, running);
   renderCoverage(d.coverage);
   const rep = d.report;
   $("#d-report").innerHTML = ["comments", "replies"].map((k) => {
@@ -622,9 +744,38 @@ async function loadRun() {
   const opts = d.containers.map((c) => `<option value="${esc(c.container_id)}">${esc((c.title || c.container_id).slice(0, 50))}</option>`).join("");
   if ($("#x-container").options.length !== d.containers.length + 1) $("#x-container").innerHTML = '<option value="">all videos</option>' + opts;
   loadDiff();
+  loadExports();
 }
 
-$("#d-seq").onchange = (e) => { currentSeq = e.target.value; loadRun().then(loadExplore); };
+// Why the run stopped, when it will be able to go on, and the way to do that.
+let quotaStopped = null;
+function renderQuotaNotice() {
+  const box = $("#d-quota");
+  box.classList.toggle("hidden", !quotaStopped);
+  if (!quotaStopped || !state) return;
+  const reset = new Date(state.budget.reset), ms = reset - new Date();
+  const when = `${reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"})} your time, in ${Math.floor(ms / 3.6e6)}h${String(Math.floor(ms % 3.6e6 / 6e4)).padStart(2, "0")}`;
+  const text = quotaStopped === "waiting"
+    ? `Waiting for the quota: it resets ${when}. The collection goes on by itself as long as the terminal window stays open.`
+    : `The daily quota ran out. Nothing collected is lost. It resets ${when}.`;
+  if (box.dataset.text === text) return;
+  box.dataset.text = text;
+  box.innerHTML = `${esc(text)}${quotaStopped === "stopped" ? ' <button class="btn" id="b-wait">Continue automatically after the reset</button>' : ""}`;
+  const go = $("#b-wait");
+  if (go) go.onclick = () => act("resume", {name: current, wait: true});
+}
+
+$("#b-again").onclick = () => {
+  if (!currentConfig) return;
+  setForm(currentConfig);
+  nameEdited = false; lastPlanKey = null;
+  $("#f-name").value = autoName(); $("#plan-out").innerHTML = ""; $("#plan-err").textContent = ""; $("#f-name-row").classList.add("hidden");
+  $("#f-adv").open = false;
+  draftSet({...formConfig(), nameEdited});
+  show("new");
+};
+
+$("#d-seq").onchange = (e) => { currentSeq = e.target.value; exploreOffset = 0; loadRun().then(loadExplore); };
 $("#b-pause").onclick = () => act("pause", {});
 $("#b-resume").onclick = () => act("resume", {name: current, wait: $("#d-wait").checked});
 $("#b-refresh").onclick = () => { if (confirm("Collect the same videos again as a new snapshot? This spends quota.")) act("refresh", {name: current, wait: $("#d-wait").checked}); };
@@ -635,6 +786,7 @@ $("#b-export").onclick = async () => {
     const r = await api("export", {name: current, format: $("#e-format").value, kept: $("#e-kept").checked,
       excel: $("#e-excel").checked, seq: currentSeq ? Number(currentSeq) : null});
     $("#e-out").innerHTML = `Written to <code>${esc(r.path)}</code> (data, exclusion_report.json, run_manifest.json, codebook.md).`;
+    loadExports();
   } catch (e) { $("#e-out").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 $("#b-delete").onclick = () => $("#d-delete").classList.toggle("hidden");
@@ -663,6 +815,32 @@ $("#b-del-older").onclick = async () => {
     $("#d-msg").append(` Deleted ${r.snapshots} older snapshot(s) and ${r.exports.length} export folder(s).`);
   } catch (e) { $("#d-err").textContent = e.message; }
 };
+// ---------- exports ----------
+async function loadExports() {
+  let list;
+  try { list = (await api(`exports?name=${encodeURIComponent(current)}`)).exports; } catch (e) { return; }
+  $("#e-list").innerHTML = list.length ? `<h3>Exports of this run</h3><table><tr><th>folder</th><th>snapshot</th><th>format</th><th class="num">rows</th><th>written</th><th></th></tr>` +
+    list.map((x) => `<tr><td>${esc(x.folder)}</td><td>${esc(x.snapshot)}</td><td>${esc(x.format)}${x.kept_only ? " (kept only)" : ""}</td>
+      <td class="num">${fmt(x.rows)}</td><td>${esc((x.exported_at || "").slice(0, 16).replace("T", " "))}</td>
+      <td><a class="btn-link" href="/download/export?name=${encodeURIComponent(current)}&folder=${encodeURIComponent(x.folder)}" download>Download</a>
+        · <a href="#" class="btn-link" data-copy="${esc(x.path)}">Copy path</a></td></tr>`).join("") + "</table>" : "";
+  $("#e-list").querySelectorAll("[data-copy]").forEach((a) => a.onclick = async (ev) => {
+    ev.preventDefault();
+    try { await navigator.clipboard.writeText(a.dataset.copy); a.textContent = "Copied"; }
+    catch (e) { a.textContent = a.dataset.copy; }
+  });
+}
+async function loadPreview() {
+  if (!$("#e-preview-box").open || !current) return;
+  const q = new URLSearchParams({name: current, seq: currentSeq, kept: $("#e-kept").checked ? "1" : "0"});
+  let p;
+  try { p = await api("preview?" + q); } catch (e) { $("#e-preview").innerHTML = `<span class="err">${esc(e.message)}</span>`; return; }
+  $("#e-preview").innerHTML = `<p class="hint">The first ${p.rows.length} of ${fmt(p.total)} rows of the comments file.</p><div style="overflow-x:auto"><table style="min-width:900px"><tr>${p.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>` +
+    p.rows.map((r) => `<tr>${p.columns.map((c) => `<td>${esc(String(r[c] ?? "").slice(0, 60))}</td>`).join("")}</tr>`).join("") + "</table></div>";
+}
+$("#e-preview-box").addEventListener("toggle", loadPreview);
+$("#e-kept").addEventListener("change", loadPreview);
+
 async function act(path, body) {
   try { await api(path, body); $("#d-err").textContent = ""; } catch (e) { $("#d-err").textContent = e.message; }
   await refreshState(); loadRun();
@@ -684,13 +862,19 @@ async function loadDiff() {
 
 // ---------- explore ----------
 let exploreTimer = null;
-["#x-kept", "#x-container", "#x-reason"].forEach((s) => $(s).onchange = loadExplore);
-$("#x-search").oninput = () => { clearTimeout(exploreTimer); exploreTimer = setTimeout(loadExplore, 300); };
+let exploreOffset = 0;
+const firstPage = () => { exploreOffset = 0; loadExplore(); };
+["#x-kept", "#x-container", "#x-reason", "#x-sort"].forEach((s) => $(s).onchange = firstPage);
+$("#x-search").oninput = () => { clearTimeout(exploreTimer); exploreTimer = setTimeout(firstPage, 300); };
+$("#x-prev").onclick = () => { exploreOffset = Math.max(0, exploreOffset - exploreShown.page); loadExplore(); };
+$("#x-next").onclick = () => { exploreOffset += exploreShown.page; loadExplore(); };
+let exploreShown = {page: 200, total: 0};
 
 async function loadExplore() {
   if (!current) return;
   const q = new URLSearchParams({name: current, seq: currentSeq, kept: $("#x-kept").checked ? "1" : "0",
-    search: $("#x-search").value, container: $("#x-container").value, reason: $("#x-reason").value});
+    search: $("#x-search").value, container: $("#x-container").value, reason: $("#x-reason").value,
+    sort: $("#x-sort").value, offset: exploreOffset});
   let d;
   try { d = await api("explore?" + q); } catch (e) { return; }
   renderTimeline(d.timeline);
@@ -699,7 +883,11 @@ async function loadExplore() {
   if (rest) langs.push({lang: "other", n: rest});
   $("#x-langs").innerHTML = langs.map((l) => `<div class="b"><span>${esc(l.lang || "undetected")}</span><div class="t"><i style="width:${tot ? 100 * l.n / Math.max(...langs.map((z) => z.n)) : 0}%"></i></div><span>${fmt(l.n)}</span></div>`).join("") || '<p class="muted">No data yet.</p>';
   $("#x-top").innerHTML = d.top.length ? `<table>` + d.top.map((t) => `<tr><td class="num">${fmt(t.like_count)}</td><td class="txt">${esc((t.text || "").slice(0, 140))}</td></tr>`).join("") + "</table>" : '<p class="muted">No data yet.</p>';
-  $("#x-sample").innerHTML = `<p class="hint">${d.sample.length === 200 ? "First 200 matches" : d.sample.length + " matches"}, oldest first. Authors are pseudonymous.</p>` +
+  exploreShown = d;
+  const shownTo = d.offset + d.sample.length;
+  $("#x-pager").classList.toggle("hidden", d.total <= d.page);
+  $("#x-prev").disabled = !d.offset; $("#x-next").disabled = shownTo >= d.total;
+  $("#x-sample").innerHTML = `<p class="hint">${d.total ? `${fmt(d.offset + 1)}–${fmt(shownTo)} of ${fmt(d.total)} matches` : "0 matches"}. Authors are pseudonymous.</p>` +
     (d.sample.length ? `<table><tr><th>posted</th><th>video</th><th></th><th class="num">likes</th><th>lang</th><th>text</th></tr>` +
     d.sample.map((s) => `<tr><td>${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td><td>${esc(s.container_id)}</td>
       <td class="muted">${s.depth ? "↳ reply" : ""}</td><td class="num">${fmt(s.like_count)}</td>
@@ -784,6 +972,38 @@ function coverageParts(cov) {
     {k: "not_sampled", label: gap, color: "var(--other)"},
   ];
 }
+// How far one video is: comments first, then their replies when there are any to fetch.
+function videoProgress(c, col) {
+  if (c.phase === "unavailable" || c.phase === "done") return 100;
+  const tot = c.comment_count, capped = col.order !== "oldest" && col.max_items > 0;
+  const target = capped ? Math.min(col.max_items, tot ?? col.max_items) : tot;
+  const got = capped ? c.threads : c.threads + c.replies;
+  const comments = target ? Math.min(100, 100 * got / target) : 0;
+  if (!col.replies) return comments;
+  if (c.phase === "replies") return 50 + 50 * (1 - c.replies_left / Math.max(1, c.threads));
+  return comments / 2;
+}
+
+// Overall progress, and the time left from how fast it moved over the last refreshes.
+let samples = [];
+function renderOverall(d, running) {
+  const col = d.config.collect, all = d.containers;
+  const pct = all.length ? all.reduce((a, c) => a + videoProgress(c, col), 0) / all.length : 0;
+  $("#d-overall").firstElementChild.style.width = pct + "%";
+  samples = running ? [...samples, [Date.now(), pct]].slice(-12) : [];
+  const [first, last] = [samples[0], samples[samples.length - 1]];
+  const rate = samples.length >= 3 ? (last[1] - first[1]) / (last[0] - first[0]) : 0;
+  let left = "";
+  if (rate > 0 && pct < 100) {
+    const min = (100 - pct) / rate / 6e4;
+    left = min < 1 ? " · less than a minute left" : ` · about ${Math.round(min)} min left`;
+  }
+  $("#d-overall-text").textContent = `${Math.round(pct)}% of this snapshot${left}` +
+    (running ? " · keep the terminal window open: closing it pauses the collection" : "");
+  document.title = running ? `${Math.round(pct)}% · ${d.run.name}` : BASE_TITLE;
+  return pct;
+}
+
 function renderCoverage(cov) {
   const t = cov.total, parts = coverageParts(cov);
   const skipped = Object.entries(cov.skipped).map(([k, n]) => `${n} ${esc(k.replace(/_/g, " "))}`).join(", ");
@@ -889,6 +1109,7 @@ async function refreshState() {
   try { state = await api("state"); } catch (e) { return; }
   renderQuota(state.budget);
   renderSummaries();
+  renderQuotaNotice();
   if (!$("#view-runs").classList.contains("hidden")) renderRuns();
   if (!$("#view-quota").classList.contains("hidden")) loadQuota();
 }
@@ -904,6 +1125,12 @@ async function tick() {
 (async function init() {
   await refreshState();
   fillForm(state.defaults);
+  const draft = draftGet();
+  if (draft) {
+    setForm(draft);
+    nameEdited = !!draft.nameEdited;
+    if (nameEdited) $("#f-name").value = draft.name;
+  }
   const linked = decodeURIComponent((location.hash.match(/^#run=(.+)$/) || [])[1] || "");
   if (!state.has_key) show("key");
   else if (location.hash === "#key") show("key");

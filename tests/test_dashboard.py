@@ -1,9 +1,11 @@
 """Dashboard API end to end, with the in-memory YouTube."""
 
+import io
 import json
 import threading
 import urllib.error
 import urllib.request
+import zipfile
 from http.server import ThreadingHTTPServer
 
 import pytest
@@ -47,8 +49,8 @@ def test_plan_run_explore_refresh_export(api, tmp_path):
     plan = api.post_plan({"config": CFG})
     assert [c["container_id"] for c in plan["containers"]] == ["aaaaaaaaaaa", "bbbbbbbbbbb"]
     assert plan["estimate"]["low"] == 2
-    with pytest.raises(ValueError, match="estimate"):
-        api.post_run({"config": {**CFG, "collect": {**CFG["collect"], "max_items": 60}}})
+    with pytest.raises(ValueError, match="check the videos"):  # other videos than the ones checked
+        api.post_run({"config": {**CFG, "targets": ["aaaaaaaaaaa"]}})
     api.post_run({"config": CFG})
     wait(api)
     assert (tmp_path / "runs" / "demo.toml").exists()
@@ -321,3 +323,77 @@ def test_post_bodies_are_capped_and_must_be_json(http):
     with pytest.raises(urllib.error.HTTPError) as e:
         post(http, "/api/pause", b"not json", Origin=http)
     assert e.value.code == 400
+
+
+def test_changing_a_setting_costs_nothing_but_new_videos_do(api):
+    used = lambda: api.get_state({})["budget"]["used"]
+    first = api.post_plan({"config": CFG})
+    assert first["checked"] is True
+    spent = used()
+    second = api.post_plan({"config": {**CFG, "collect": {**CFG["collect"], "max_items": 0}}})
+    assert second["checked"] is False and used() == spent
+    assert second["estimate"]["high"] > first["estimate"]["high"]
+    third = api.post_plan({"config": {**CFG, "targets": ["aaaaaaaaaaa"]}})
+    assert third["checked"] is True and used() > spent
+
+
+def test_a_setting_changed_after_the_estimate_can_still_start(api):
+    api.post_plan({"config": CFG})
+    api.post_run({"config": {**CFG, "collect": {**CFG["collect"], "max_items": 60}}})
+    wait(api)
+    assert api.get_run({"name": "demo"})["config"]["collect"]["max_items"] == 60
+
+
+def test_a_check_of_the_videos_expires(api, monkeypatch):
+    api.post_plan({"config": CFG})
+    now = server.time.time()
+    monkeypatch.setattr(server.time, "time", lambda: now + server.RESOLVED_FOR + 1)
+    with pytest.raises(ValueError, match="hour"):
+        api.post_run({"config": CFG})
+    assert api.post_plan({"config": CFG})["checked"] is True
+
+
+def test_explore_pages_and_orders(api):
+    collected(api)
+    q = {"name": "demo", "kept": "0"}
+    first = api.get_explore(q)
+    assert first["total"] > first["page"] == len(first["sample"]) and first["offset"] == 0
+    second = api.get_explore({**q, "offset": str(first["page"])})
+    assert second["offset"] == first["page"] and second["sample"] != first["sample"]
+    assert {s["item_id"] for s in first["sample"]}.isdisjoint(s["item_id"] for s in second["sample"])
+    liked = [s["like_count"] for s in api.get_explore({**q, "sort": "liked"})["sample"]]
+    assert liked == sorted(liked, reverse=True)
+    newest = [s["created_at"] for s in api.get_explore({**q, "sort": "newest"})["sample"]]
+    assert newest == sorted(newest, reverse=True)
+    assert api.get_explore({**q, "sort": "1; DROP TABLE items"})["total"] == first["total"]  # the order is a fixed list
+
+
+def test_preview_shows_what_an_export_holds(api):
+    collected(api)
+    p = api.get_preview({"name": "demo"})
+    assert len(p["rows"]) == 5 and p["total"] > 5 and "text" in p["columns"]
+    assert "text_raw" not in p["columns"] and "author_name" not in p["columns"]  # pseudonymized, as the export is
+    assert api.get_preview({"name": "demo", "kept": "1"})["total"] < p["total"]
+
+
+def test_exports_are_listed_and_downloaded_and_nothing_else(http, api, tmp_path):
+    collected(api)
+    path = api.post_export({"name": "demo", "format": "csv", "kept": True})["path"]
+    rows = api.get_exports({"name": "demo"})["exports"]
+    assert [(r["folder"], r["snapshot"], r["format"], r["kept_only"]) for r in rows] == [("demo", 1, "csv", True)]
+    assert rows[0]["rows"] > 0 and rows[0]["path"] == path
+    r = urllib.request.urlopen(f"{http}/download/export?name=demo&folder=demo")
+    assert r.headers["Content-Type"] == "application/zip" and 'filename="demo.zip"' in r.headers["Content-Disposition"]
+    with zipfile.ZipFile(io.BytesIO(r.read())) as z:
+        assert "demo/items.csv" in z.namelist() and "demo/codebook.md" in z.namelist()
+    (tmp_path / "exports" / "other").mkdir()
+    (tmp_path / "secret.txt").write_text("x")
+    for bad in ("folder=other", "folder=..", "folder=../..", "folder=", "name=nope&folder=demo"):
+        url = f"{http}/download/export?{bad if bad.startswith('name') else 'name=demo&' + bad}"
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(url)
+        assert e.value.code == 404, bad
+    req = urllib.request.Request(f"{http}/download/export?name=demo&folder=demo", headers={"Host": "evil.example:1"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req)
+    assert e.value.code == 403

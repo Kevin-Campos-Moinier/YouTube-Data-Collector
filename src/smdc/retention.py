@@ -28,8 +28,8 @@ def snapshot_delete_by(snap: dict) -> str | None:
     return delete_by(snap.get("finished_at") or snap.get("started_at"))
 
 
-def _exports_of(out_root: Path, run_name: str, snaps: list[dict]) -> list[Path]:
-    """The export folders holding these snapshots, read from each folder's manifest.
+def _manifests_of(out_root: Path, run_name: str, snaps: list[dict]) -> list[tuple[Path, dict]]:
+    """The export folders holding these snapshots, with their manifest.
 
     A folder's name is not enough: a run may be called `a-s2`, and a run deleted earlier may have
     left exports under the same name as this one.
@@ -49,12 +49,25 @@ def _exports_of(out_root: Path, run_name: str, snaps: list[dict]) -> list[Path]:
         except (OSError, ValueError, KeyError, TypeError):
             continue
         if m.get("run") == run_name and key in wanted:
-            found.append(folder)
+            found.append((folder, m))
     return found
 
 
+def exports_of(out_root: Path, run_name: str, snaps: list[dict]) -> list[Path]:
+    """The export folders holding these snapshots."""
+    return [folder for folder, _ in _manifests_of(out_root, run_name, snaps)]
+
+
+def list_exports(out_root: Path, run_name: str, snaps: list[dict]) -> list[dict]:
+    """What the page shows of each export of a run, newest first."""
+    rows = [{"folder": folder.name, "path": str(folder), "snapshot": m["snapshot"]["seq"],
+             "exported_at": m.get("exported_at"), **{k: m.get("export", {}).get(k) for k in ("format", "kept_only", "rows")}}
+            for folder, m in _manifests_of(out_root, run_name, snaps)]
+    return sorted(rows, key=lambda r: r["exported_at"] or "", reverse=True)
+
+
 def _remove_exports(data: Path, run_name: str, snaps: list[dict]) -> list[str]:
-    folders = _exports_of(data / "exports", run_name, snaps)
+    folders = exports_of(data / "exports", run_name, snaps)
     for folder in folders:
         shutil.rmtree(folder)
     return [f.name for f in folders]
