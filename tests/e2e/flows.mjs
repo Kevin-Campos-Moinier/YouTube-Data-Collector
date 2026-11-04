@@ -344,6 +344,17 @@ try {
     state.budget.refused = r; quotaStopped = q; renderQuotaNotice(); return out; })()`);
   check("the next day: a run stopped for quota says the quota is back", /quota is back: press Resume/.test(await backNotice("stopped")) && !/resets|button/.test(await backNotice("stopped")), await backNotice("stopped"));
   check("just after the reset: a waiting run says it starts again", /starts again/.test(await backNotice("waiting")) && !/resets/.test(await backNotice("waiting")), await backNotice("waiting"));
+  const info = (b) => ev(`document.querySelector(${JSON.stringify(b)}).click()`);
+  check("the (i) beside the 30-day rule starts closed", (await ev(`document.querySelector("#d-rules").checkVisibility()`)) === false);
+  await info('[aria-controls="d-rules"]');
+  check("the (i): opens, with the rules and their links", await ev(`document.querySelector("#d-rules").checkVisibility() && /pass on the comments/.test(document.querySelector("#d-rules").innerText) && document.querySelectorAll("#d-rules a[href^=https]").length === 3`));
+  check("the (i): says it is open", (await ev(`document.querySelector('[aria-controls="d-rules"]').getAttribute("aria-expanded")`)) === "true");
+  await sleep(2500);
+  check("the (i): stays open through the page's refreshes", await ev(`document.querySelector("#d-rules").checkVisibility()`));
+  await shot("rules-open");
+  await info('[aria-controls="d-rules"]');
+  check("the (i): closes", (await ev(`document.querySelector("#d-rules").checkVisibility()`)) === false);
+  check("the (i) has a name for a screen reader", await ev(`!!document.querySelector('[aria-controls="e-rules"]').getAttribute("aria-label")`));
   await shot("quota-out");
   await click("#b-resume"); await sleep(600);
   check("resume with no quota left: stops again, no crash", await until(stopped, 20000), await status());

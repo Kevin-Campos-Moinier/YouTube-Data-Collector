@@ -76,6 +76,7 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 a.quota { cursor: pointer; display: block; color: inherit; text-decoration: none; }
 .term { border-bottom: 1px dotted currentColor; cursor: help; }
+.nowrap { white-space: nowrap; }
 #term-tip { position: fixed; z-index: 5; max-width: 300px; background: var(--ink); color: var(--page); border-radius: var(--radius-sm);
   padding: 6px 10px; font-size: 13px; pointer-events: none; }
 h1:focus { outline: none; }
@@ -249,7 +250,8 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
 <section id="view-detail" class="hidden">
   <div class="row"><h1 id="d-name"></h1><span id="d-status" aria-live="polite"></span>
     <select id="d-seq" class="hidden" style="width:auto" aria-label="Snapshot"></select></div>
-  <p class="lede" id="d-msg"></p>
+  <p class="lede"><span id="d-msg"></span>&#8288;<button class="ui-info" type="button" aria-label="What YouTube's rules mean for this data" aria-expanded="false" aria-controls="d-rules"><svg class="ui-icon" aria-hidden="true"><use href="/ui/icons.svg#info"></use></svg></button></p>
+  <div class="ui-info-panel" id="d-rules" data-rules hidden></div>
   <section class="ui-strip" id="d-strip" aria-label="In brief"></section>
   <div class="notice hidden" id="d-quota" role="status"></div>
   <p class="notice hidden" id="d-older" role="status"></p>
@@ -342,6 +344,8 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
       <button class="btn primary" id="b-export">Export</button>
     </div>
     <div id="e-out" class="hint" aria-live="polite"></div>
+    <p class="hint">Before you share an export, read what YouTube's rules allow. <button class="ui-info" type="button" aria-label="What YouTube's rules mean for sharing an export" aria-expanded="false" aria-controls="e-rules"><svg class="ui-icon" aria-hidden="true"><use href="/ui/icons.svg#info"></use></svg></button></p>
+    <div class="ui-info-panel" id="e-rules" data-rules hidden></div>
     <details id="e-preview-box" style="margin-top:10px"><summary class="muted">Preview what an export holds</summary><div id="e-preview" style="margin-top:8px"></div></details>
     <div id="e-list" style="margin-top:10px"></div>
   </div>
@@ -388,6 +392,28 @@ async function api(path, body) {
 }
 
 // ---------- explanations ----------
+const POLICIES = "https://developers.google.com/youtube/terms/developer-policies";
+const RULES = `
+  <p><b>Keep it 30 days at most.</b> Data read with a plain API key may be stored for no longer than 30 calendar days, then
+    refreshed or deleted (<a href="${POLICIES}" target="_blank" rel="noopener">Developer Policies</a>, III.E.4.d).</p>
+  <p><b>Do not publish or pass on the comments.</b> The same policies forbid redistributing any portion of the API's data
+    (III.G.1.a), with no exception for research. Pseudonymized comments are still that data.</p>
+  <p><b>Figures drawn from the data are restricted too</b> (III.E.2, III.E.4.h). The
+    <a href="https://research.youtube/policies/terms/" target="_blank" rel="noopener">YouTube Researcher Program</a> allows
+    publishing derived metrics and freezing the data to finish an analysis (5.a, 7.c), but not passing the data on (7.a.i).
+    It presents itself around video metadata: check that it covers comments.</p>
+  <p><b>For a transparent paper, share the method:</b> the code, the settings (<code>run_manifest.json</code>), the codebook
+    and the list of videos, so that others can collect again. The terms do not address lists of videos.</p>
+  <p>This is a reading of YouTube's terms, not legal advice. Ask your data protection officer, and
+    <a href="https://support.google.com/youtube/contact/yt_api_form" target="_blank" rel="noopener">YouTube</a> about your case.</p>`;
+document.querySelectorAll("[data-rules]").forEach((p) => { p.innerHTML = RULES; });
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest?.(".ui-info");
+  if (!b) return;
+  const panel = $("#" + b.getAttribute("aria-controls"));
+  panel.hidden = !panel.hidden;
+  b.setAttribute("aria-expanded", String(!panel.hidden));
+});
 function showTip(el) {
   const tip = $("#term-tip"), r = el.getBoundingClientRect();
   tip.textContent = el.dataset.tip;
@@ -740,7 +766,7 @@ async function loadRun() {
   renderQuotaNotice();
   const latest = d.snapshots[d.snapshots.length - 1];
   $("#d-msg").innerHTML = `${d.snapshot.message && !quotaStopped ? esc(d.snapshot.message) + " · " : ""}Started ${esc((d.snapshot.started_at || "").replace("T", " ").slice(0, 16))} UTC.
-    <b>YouTube's 30-day rule:</b> refresh or delete this data by ${esc(d.retention || "—")}.`;
+    <b>YouTube's 30-day rule:</b> refresh or delete this data by <span class="nowrap">${esc(d.retention || "—")}.</span>`;
   const older = d.snapshots.slice(0, -1).filter((s) => s.delete_by && daysUntil(s.delete_by) <= 7);
   $("#d-older").classList.toggle("hidden", !older.length);
   if (older.length) $("#d-older").textContent = `A refresh does not renew older snapshots: snapshot${older.length > 1 ? "s" : ""} ${older.map((s) => s.seq).join(", ")} must go by ${older[0].delete_by}. Use Delete…, then Delete older snapshots.`;

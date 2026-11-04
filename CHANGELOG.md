@@ -15,6 +15,9 @@ All notable changes to this project are listed here. The format follows
 
 ### Added
 
+- What YouTube's rules mean for the data: an (i) beside the 30-day sentence and beside *Export*, a section in every
+  codebook, a field in `run_manifest.json`, and the README. In short: the comments cannot be published or passed on, even
+  pseudonymized; share the method instead.
 - Delete a run, or the older snapshots a refresh leaves behind, from the dashboard or with `smdc delete`. The data
   leaves the database file itself. Exports go too unless you untick the box (`--keep-exports`); the quota history stays.
 - Each snapshot has its own date for YouTube's 30-day rule: the Runs page and `smdc status` show it, with a warning

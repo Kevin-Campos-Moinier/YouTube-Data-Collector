@@ -233,9 +233,17 @@ to get around the limit: the YouTube API Terms forbid it.
   refreshed or deleted after 30 days. The dashboard and `smdc status` show the date for each run and snapshot, with
   a warning seven days before. `refresh` writes a new snapshot and leaves the older ones as they were, so delete those
   too (*Delete…* in the dashboard, or `smdc delete NAME --older-snapshots`).
+- **Publishing:** the same policies forbid redistributing any portion of the API's data (III.G.1.a), with no exception for
+  research, and pseudonymized comments are still that data. Figures derived from it are restricted too (III.E.2,
+  III.E.4.h); the [YouTube Researcher Program](https://research.youtube/policies/terms/) allows publishing derived metrics
+  and freezing the data to finish an analysis (5.a, 7.c), but not passing the data on (7.a.i), and it presents itself
+  around video metadata: check that it covers comments. For a transparent paper, share the method: the code, the settings
+  (`run_manifest.json`), the codebook and the list of videos, so that others can collect again (the terms do not address
+  lists of videos). This is a reading of YouTube's terms, not legal advice: ask your data protection officer, and
+  [YouTube](https://support.google.com/youtube/contact/yt_api_form) about your case.
 - **The database is personal data.** Exports are pseudonymized, but the database keeps each
-  comment's text exactly as returned (with `@handles`) so that it can be reprocessed. Share
-  exports, not `smdc.sqlite`. Raw API responses are stored without commenter
+  comment's text exactly as returned (with `@handles`) so that it can be reprocessed. If someone on your project needs
+  the data, hand over exports, not `smdc.sqlite`. Raw API responses are stored without commenter
   identifiers unless `keep_identifiers = true`. On a shared computer, the data folder is
   created readable by you only; a folder from an older version can be closed with
   `chmod 700 ~/smdc-data`.

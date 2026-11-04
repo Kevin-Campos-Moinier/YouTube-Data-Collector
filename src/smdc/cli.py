@@ -155,6 +155,7 @@ def cmd_export(ctx: Ctx, a) -> int:
     print(f"exported to {out}")
     snaps = ctx.store.snapshots(ctx.store.run(a.run)["run_id"])
     print(f"next: open codebook.md there. YouTube's 30-day rule: refresh or delete this data by {retention.snapshot_delete_by(snaps[0])}.")
+    print("Before you share it: YouTube's policies do not allow passing the comments on (see the codebook).")
     return 0
 
 

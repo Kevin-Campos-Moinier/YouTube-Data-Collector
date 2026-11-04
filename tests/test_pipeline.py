@@ -1,5 +1,6 @@
 """End-to-end collection against the in-memory API: counts, quota, resume, refresh."""
 
+import json
 import pytest
 
 from fakeyt import FakeYouTube, make_video
@@ -156,6 +157,9 @@ def test_export_privacy_and_report(tmp_path):
     assert "@u" not in body and "UCu" not in body
     for f in ("containers.csv", "exclusion_report.json", "run_manifest.json", "codebook.md"):
         assert (out / f).exists()
+    # whoever receives the folder learns that the comments cannot be passed on
+    assert "III.G.1.a" in (out / "codebook.md").read_text(encoding="utf-8")
+    assert "III.G.1.a" in json.loads((out / "run_manifest.json").read_text(encoding="utf-8"))["sharing_note"]
     rep = env.store.report(env.store.snapshots(run_id)[0]["snapshot_id"])
     for d in rep.values():
         assert d["collected"] == sum(v for k, v in d.items() if k != "collected")

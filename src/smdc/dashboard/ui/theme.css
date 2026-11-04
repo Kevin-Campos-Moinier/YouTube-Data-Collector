@@ -78,6 +78,13 @@ button, select, input, textarea { font: inherit; color: var(--ink); }
 .ui-round { width: 34px; height: 34px; padding: 0; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
   color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .ui-round:hover { color: var(--ink); background: var(--surface-2); }
+.ui-info { width: 24px; height: 24px; padding: 0; margin-left: 2px; border: 0; border-radius: 999px; background: transparent;
+  color: var(--muted); display: inline-flex; align-items: center; justify-content: center; vertical-align: text-bottom; cursor: pointer; }
+.ui-info:hover, .ui-info[aria-expanded="true"] { color: var(--tool); background: var(--surface-2); }
+.ui-info .ui-icon { width: 16px; height: 16px; }
+.ui-info-panel { margin: 8px 0 12px; padding: 12px 14px; background: var(--surface-2); border-radius: var(--radius-sm); font-size: 14px; color: var(--ink-2); }
+.ui-info-panel p { margin: 0 0 8px; }
+.ui-info-panel p:last-child { margin-bottom: 0; }
 .ui-eyebrow { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .ui-lead { margin: 4px 0 0; font-family: var(--font-display); font-size: 34px; font-weight: 500; line-height: 1.15; text-wrap: balance; }
 .ui-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 22px; min-width: 0; }
