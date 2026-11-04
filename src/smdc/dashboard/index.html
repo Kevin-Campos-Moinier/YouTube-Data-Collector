@@ -779,11 +779,13 @@ async function loadRun() {
   const seqSel = $("#d-seq");
   seqSel.classList.toggle("hidden", d.snapshots.length < 2);
   seqSel.innerHTML = d.snapshots.map((s) => `<option value="${s.seq}" ${s.seq === d.snapshot.seq ? "selected" : ""}>snapshot ${s.seq}</option>`).join("");
-  $("#b-pause").disabled = !running || state.job.stopping;
+  const off = (b, why) => { b.disabled = !!why; b.title = why || ""; };   // a greyed-out button says why
+  const busy = state && state.job.busy ? "Another collection is running: wait for it to end." : "";
+  off($("#b-pause"), stopping ? "Already stopping." : running ? "" : "This run is not collecting right now.");
   $("#b-pause").textContent = stopping ? "Stopping…" : "Pause";
-  $("#b-resume").disabled = running || latest.status === "done" || (state && state.job.busy);
-  $("#b-refresh").disabled = running || latest.status !== "done" || (state && state.job.busy);
-  $("#b-delete").disabled = running;
+  off($("#b-resume"), running ? "This run is collecting right now." : latest.status === "done" ? "This run is finished: refresh it to collect again." : busy);
+  off($("#b-refresh"), running ? "Pause this run first." : latest.status !== "done" ? "Only a finished run can be refreshed: resume this one first." : busy);
+  off($("#b-delete"), running ? "Pause this run first." : "");
   const other = state && state.job.busy && !running;
   $("#d-why").textContent = other ? `Another run (${state.job.run}) is collecting: only one at a time, because they share the daily quota.`
     : stopping ? "Finishing the pages in flight, then it stops."
@@ -979,7 +981,8 @@ async function loadExplore() {
   exploreShown = d;
   const shownTo = d.offset + d.sample.length;
   $("#x-pager").classList.toggle("hidden", d.total <= d.page);
-  $("#x-prev").disabled = !d.offset; $("#x-next").disabled = shownTo >= d.total;
+  $("#x-prev").disabled = !d.offset; $("#x-prev").title = d.offset ? "" : "This is the first page.";
+  $("#x-next").disabled = shownTo >= d.total; $("#x-next").title = shownTo < d.total ? "" : "This is the last page.";
   $("#x-sample").innerHTML = `<p class="hint">${d.total ? `${fmt(d.offset + 1)}–${fmt(shownTo)} of ${fmt(d.total)} matches` : "0 matches"}. Authors are pseudonymous.</p>` +
     (d.sample.length ? `<table><tr><th>posted</th><th>video</th><th></th><th class="num">likes</th><th>lang</th><th>text</th></tr>` +
     d.sample.map((s) => `<tr><td>${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td><td>${esc(s.container_id)}</td>

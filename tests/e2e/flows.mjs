@@ -144,6 +144,8 @@ try {
   await click("#b-resume");
   check("resume: running again", await until(`document.querySelector("#d-status").innerText.includes("running")`, 5000), await status());
   check("resume: finishes", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());
+  check("a finished run: Pause says why it is off", (await ev(`document.querySelector("#b-pause").title`)).includes("not collecting"), await ev(`document.querySelector("#b-pause").title`));
+  check("a finished run: Resume says why it is off", (await ev(`document.querySelector("#b-resume").title`)).includes("finished"), await ev(`document.querySelector("#b-resume").title`));
   await sleep(2500);
   const after = await text("#d-strip");
   check("done: the comments are there without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline") && document.querySelectorAll("#x-langs .b").length > 0`, 4000), await text("#x-sample"));
