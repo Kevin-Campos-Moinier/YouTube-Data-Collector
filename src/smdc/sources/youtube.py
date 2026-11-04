@@ -2,7 +2,8 @@
 
 Quota rules this module is built around (costs per call, default 10,000/day):
   videos.list, channels.list, playlistItems.list, commentThreads.list,
-  comments.list: 1 unit; search.list: 100 units.
+  comments.list: 1 unit. search.list has its own limit since June 2026, 100 calls
+  a day, and leaves the 10,000 alone.
 `commentThreads.list(part=snippet,replies)` returns up to 5 replies per thread
 at no extra cost, so `comments.list` is only called for threads with more
 replies than that, and only up to the requested cap.
@@ -17,6 +18,7 @@ from .. import net
 from ..budget import Budget
 from ..config import Collect
 from ..model import Container, Estimate, Item, Page
+from ..budget import REFUSED
 from .base import BudgetExhausted, Unavailable
 
 API = "https://www.googleapis.com/youtube/v3/"
@@ -32,7 +34,8 @@ UNAVAILABLE = {"commentsDisabled": "comments_disabled", "videoNotFound": "not_fo
                "channelNotFound": "not_found", "playlistNotFound": "not_found"}
 KEY_REASONS = {"API_KEY_INVALID", "SERVICE_DISABLED", "accessNotConfigured", "API_KEY_SERVICE_BLOCKED",
                "API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED", "ipRefererBlocked"}
-COST = {"search": 100}
+COST = {"search": 0}  # counted apart: SEARCHES_PER_DAY
+SEARCHES_PER_DAY = 100
 PROBE_VIDEO = "dQw4w9WgXcQ"  # any public video: the answer does not matter, only that the key is accepted
 
 
@@ -126,6 +129,9 @@ def explain_http_error(e: net.HttpError) -> str:
                 "YouTube Data API v3 and leave Application restrictions on None.")
     if reasons & QUOTA_REASONS:
         return "The daily quota of this key is used up. It resets at midnight, Pacific time."
+    if net.daily_limit(e.body):
+        return (f"YouTube's limit of {SEARCHES_PER_DAY} searches a day is reached for this key's project. It resets at "
+                "midnight, Pacific time. Videos, channels and playlists still work: replace the search: lines.")
     return f"YouTube refused the call (HTTP {e.status} {e.reason}).".replace(" )", ")")
 
 
@@ -156,6 +162,7 @@ class YouTubeSource:
         except net.HttpError as e:
             if e.reason not in QUOTA_REASONS:
                 raise ValueError(explain_http_error(e)) from None
+            self.budget.charge(REFUSED, 0)
 
     def _call(self, endpoint: str, params: dict) -> dict:
         self.budget.charge(endpoint, COST.get(endpoint, 1))
@@ -164,7 +171,8 @@ class YouTubeSource:
                             retry_reasons=RETRY_REASONS)
         except net.HttpError as e:
             if e.reason in QUOTA_REASONS:
-                raise BudgetExhausted(e.reason) from None
+                self.budget.charge(REFUSED, 0)
+                raise BudgetExhausted(explain_http_error(e)) from None
             if _key_problem(e):  # says "forbidden" too: about the key, not about this video
                 raise
             if e.reason in UNAVAILABLE:
@@ -211,8 +219,8 @@ class YouTubeSource:
                 ids = self._playlist(self._uploads(arg), limit)
             elif kind == "search":
                 if not params.allow_search:
-                    raise ValueError("search: targets cost 100 units per 50 results; "
-                                     "set allow_search = true to use them")
+                    raise ValueError(f"search: targets are limited to {SEARCHES_PER_DAY} calls a day, 50 results "
+                                     "each; set allow_search = true to use them")
                 ids = self._search(arg, limit)
             else:
                 raise ValueError(f"unrecognized target {raw.strip()!r}")

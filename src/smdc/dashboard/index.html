@@ -159,9 +159,9 @@ https://www.youtube.com/watch?v=VLGy63pt9vA
 W2Wnvvj33Wo   # a comment after the ID is fine
 channel:@PlayStation      (latest uploads)
 playlist:PL...
-search:star wars outlaws trailer   (100 units per 50 results)"></textarea>
+search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
     <div class="hint" id="f-targets-hint" aria-live="polite"></div>
-    <label class="check hidden" id="f-search-row"><input type="checkbox" id="f-search"> allow search lines (100 units per 50 results)</label>
+    <label class="check hidden" id="f-search-row"><input type="checkbox" id="f-search"> allow search lines (YouTube allows 100 searches a day)</label>
   </div>
 
   <div class="card">
@@ -359,7 +359,7 @@ const SERIES = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6", "--s7", "--s8"];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 // The words of this tool that YouTube or the method brings in, explained where they appear.
 const TERMS = {
-  unit: "YouTube's allowance: a key has 10,000 per day by default. A page of 100 comments costs 1, a search 100.",
+  unit: "YouTube's allowance: a key has 10,000 per day by default. A page of 100 comments costs 1. Searches have their own limit: 100 a day.",
   snapshot: "One collection of a run. Refresh makes a new one and leaves the older ones as they were.",
   kept: "Comments that passed your language filter. The others stay in the database, marked with the reason.",
 };
@@ -1101,8 +1101,7 @@ function renderCoverage(cov) {
 
 // ---------- quota ----------
 const ENDPOINTS = {commentThreads: "comment pages (100 comments each)", comments: "reply pages & refresh checks",
-  videos: "video checks (50 per unit)", channels: "channel lookups", playlistItems: "channel / playlist listings",
-  search: "searches (100 units each)"};
+  videos: "video checks (50 per unit)", channels: "channel lookups", playlistItems: "channel / playlist listings"};
 function barList(obj, labels = {}) {
   const e = Object.entries(obj).sort((a, b) => b[1] - a[1]);
   if (!e.length) return '<p class="muted">Nothing spent yet today.</p>';
@@ -1112,18 +1111,18 @@ function barList(obj, labels = {}) {
 async function loadQuota() {
   let q;
   try { q = await api("quota"); } catch (e) { return; }
-  const b = q.budget, pct = Math.min(100, 100 * b.used / b.daily);
+  const b = q.budget, pct = b.refused ? 100 : Math.min(100, 100 * b.used / b.daily);
   const reset = new Date(b.reset);
-  setHtml($("#qv-strip"), stat("Units left today", fmt(b.remaining), `room for up to ~${fmt(b.remaining * 100)} more comments`) +
-    stat("Used today", fmt(b.used), `${pct.toFixed(1)}%`) +
+  setHtml($("#qv-strip"), stat("Units left today", fmt(b.remaining), b.remaining ? `room for up to ~${fmt(b.remaining * 100)} more comments` : "until the reset") +
+    stat("Used today", fmt(b.used), b.refused ? "by this tool" : `${pct.toFixed(1)}%`) +
     stat("Daily quota", fmt(b.daily)) +
     stat("Resets", reset.toLocaleString([], {weekday: "short", hour: "2-digit", minute: "2-digit"}), "your time"));
   const m = $("#qv-meter");
   m.firstElementChild.style.width = pct + "%";
   m.classList.toggle("warn", pct >= 80 && pct < 100); m.classList.toggle("full", pct >= 100);
-  $("#qv-text").textContent = `${fmt(b.used)} of ${fmt(b.daily)} units used`;
+  $("#qv-text").textContent = b.refused ? "YouTube says the quota is used up" : `${fmt(b.used)} of ${fmt(b.daily)} units used`;
   $("#qv-note").innerHTML = `Counts only the calls made by this tool. If the same key is used elsewhere, YouTube's own figure is on the
-    <a href="${esc(q.console)}" target="_blank" rel="noopener">Google Cloud quota page</a> (it can lag by a few minutes).`;
+    <a href="${esc(q.console)}" target="_blank" rel="noopener">Google Cloud quota page</a> (it can lag by a few minutes).${q.searches ? ` Searches today: ${fmt(q.searches)} of 100, a separate daily limit.` : ""}`;
   const labels = {...ENDPOINTS};
   $("#qv-endpoints").innerHTML = barList(q.endpoints, labels);
   $("#qv-runs").innerHTML = barList(q.runs);

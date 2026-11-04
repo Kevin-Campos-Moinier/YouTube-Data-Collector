@@ -200,7 +200,7 @@ A standard key has 10,000 units per day, reset at midnight Pacific time (09:00 i
 | `commentThreads.list` | 1 per 100 comments | comments, plus up to 5 replies each for free |
 | `comments.list` | 1 per 100 replies | only for threads with more than 5 replies, up to your cap |
 | `channels.list`, `playlistItems.list` | 1, then 1 per 50 videos | `channel:` and `playlist:` targets |
-| `search.list` | **100** per 50 results | `search:` targets (off by default) |
+| `search.list` | none, but **100 calls a day** at most, 50 results each | `search:` targets (off by default) |
 
 "Oldest first" has to read every page of a video, so it costs as much as collecting all its comments.
 

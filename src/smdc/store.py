@@ -423,6 +423,10 @@ class Store:
         return self.q("SELECT COALESCE(SUM(units), 0) AS n FROM ledger WHERE platform = ? AND ts >= ?",
                       (platform, since))[0]["n"]
 
+    def called_since(self, platform: str, endpoint: str, since: str) -> bool:
+        return bool(self.q("SELECT 1 FROM ledger WHERE platform = ? AND endpoint = ? AND ts >= ? LIMIT 1",
+                           (platform, endpoint, since)))
+
     def ledger_since(self, platform: str, since: str) -> list[dict]:
         """Ledger rows since a UTC timestamp, with the run each call was made for."""
         return self.q("""SELECT l.ts, l.endpoint, l.units, l.snapshot_id, r.name AS run FROM ledger l

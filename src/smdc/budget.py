@@ -12,6 +12,9 @@ from zoneinfo import ZoneInfo
 from .store import DELETED_SNAPSHOT, Store
 
 
+REFUSED = "refused"  # ledger mark, no units: YouTube said the quota is out, whatever the count here says
+
+
 class Budget:
     """Records API costs and reports what is left for the day.
 
@@ -39,8 +42,12 @@ class Budget:
         start = self._day_start().astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         return self.store.units_since(self.platform, start)
 
+    def refused_today(self) -> bool:
+        start = self._day_start().astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return self.store.called_since(self.platform, REFUSED, start)
+
     def remaining(self) -> int:
-        return max(0, self.daily_units - self.used_today())
+        return 0 if self.refused_today() else max(0, self.daily_units - self.used_today())
 
     def next_reset(self) -> dt.datetime:
         """Next reset instant, as an aware UTC datetime."""
@@ -51,7 +58,8 @@ class Budget:
 
         Returns:
             {"days": [{"day": "YYYY-MM-DD", "units": n}, ...] oldest first,
-             "endpoints": {endpoint: units today}, "runs": {run name: units today}}.
+             "endpoints": {endpoint: units today}, "runs": {run name: units today},
+             "searches": calls today (they have their own daily limit and cost no unit)}.
         """
         start = self._day_start() - dt.timedelta(days=days - 1)
         since = start.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -59,19 +67,23 @@ class Budget:
         today = self._day_start().date().isoformat()
         endpoints: dict[str, int] = {}
         runs: dict[str, int] = {}
+        searches = 0
         for r in self.store.ledger_since(self.platform, since):
             t = dt.datetime.fromisoformat(r["ts"].replace("Z", "+00:00")).astimezone(self.tz)
             day = t.date().isoformat()
             if day in per_day:
                 per_day[day] += r["units"]
-            if day == today:
+            if day == today and r["endpoint"] == "search":
+                searches += 1
+            if day == today and r["units"]:
                 endpoints[r["endpoint"]] = endpoints.get(r["endpoint"], 0) + r["units"]
                 name = r["run"] or ("(deleted runs)" if r["snapshot_id"] == DELETED_SNAPSHOT
                                     else "(checks before a run)")
                 runs[name] = runs.get(name, 0) + r["units"]
         return {"days": [{"day": d, "units": u} for d, u in per_day.items()],
-                "endpoints": endpoints, "runs": runs}
+                "endpoints": endpoints, "runs": runs, "searches": searches}
 
     def status(self) -> dict:
         return {"platform": self.platform, "daily": self.daily_units, "used": self.used_today(),
-                "remaining": self.remaining(), "reset": self.next_reset().isoformat()}
+                "remaining": self.remaining(), "refused": self.refused_today(),
+                "reset": self.next_reset().isoformat()}

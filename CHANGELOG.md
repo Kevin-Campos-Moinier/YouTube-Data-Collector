@@ -49,6 +49,13 @@ All notable changes to this project are listed here. The format follows
 ### Fixed
 
 - A missing file on the command line gave `error: 2`; it now names the file.
+- Checking videos with no quota left showed `BudgetExhausted: quotaExceeded` (a traceback on the command line). It now
+  says that the quota is used up and when it comes back.
+- Once YouTube has said the quota is out, the pages say 0 units left for the rest of the day. They used to go on showing
+  the local count, which only sees this tool's calls.
+- Searches follow YouTube's rules since June 2026: their own limit of 100 calls a day instead of 100 units each. They no
+  longer eat into the units shown on the Quota page, which counts them apart. Reaching the limit says so at once instead
+  of retrying for a minute and showing a bare error.
 - A key refused because the API is not enabled or because of its restrictions was reported on each video as "forbidden",
   as if the videos were unavailable. The run now stops on the video with a sentence that says what to change.
 - After a run that ended within a second or two, or under a click on *Pause*, the comments stayed empty until a reload.

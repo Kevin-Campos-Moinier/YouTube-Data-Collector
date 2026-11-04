@@ -15,7 +15,7 @@ daily_units = 10000
 #   "https://www.youtube.com/watch?v=VLGy63pt9vA"   any video URL (youtu.be, /shorts/, /live/, /embed/)
 #   "channel:@PlayStation" or a channel URL         the channel's latest uploads (1 unit per 50 videos)
 #   "playlist:PL..." or a playlist URL              the playlist's videos (1 unit per 50 videos)
-#   "search:star wars outlaws trailer"              100 units per 50 results; needs allow_search = true
+#   "search:star wars outlaws trailer"              100 searches a day at most; needs allow_search = true
 # Anything after " #" is a comment. Duplicates are ignored.
 targets = [
   "VLGy63pt9vA  # Intergalactic: The Heretic Prophet - Announcement Trailer",
@@ -47,7 +47,7 @@ workers = 4
 keep_raw = true
 # Maximum videos taken from each channel / playlist / search target (0 = all).
 max_videos_per_target = 50
-# search: targets cost 100 units per page of 50 results, and YouTube search results
+# search: targets are limited to 100 calls a day (50 results each), and YouTube search results
 # are unstable (Rieder et al., 2025): off unless you need it.
 allow_search = false
 

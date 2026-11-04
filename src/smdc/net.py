@@ -46,6 +46,13 @@ def _reason(body: dict) -> str:
     return err.get("status") or ""
 
 
+def daily_limit(body: dict) -> bool:
+    """Whether a refusal names a limit counted per day, which no short wait will lift."""
+    err = body.get("error") if isinstance(body.get("error"), dict) else {}
+    return any("PerDay" in str((d.get("metadata") or {}).get("quota_limit", ""))
+               for d in err.get("details") or [] if isinstance(d, dict))
+
+
 def get_json(url: str, params: dict, *, headers: dict | None = None,
              retry_reasons: frozenset = frozenset(), retries: int = 6, timeout: float = 30.0) -> dict:
     """GETs `url?params` and returns the decoded JSON body.
@@ -75,7 +82,7 @@ def get_json(url: str, params: dict, *, headers: dict | None = None,
             except ValueError:
                 body = {}
             err = HttpError(e.code, _reason(body), body)
-            if e.code not in RETRY_STATUS and err.reason not in retry_reasons:
+            if daily_limit(body) or (e.code not in RETRY_STATUS and err.reason not in retry_reasons):
                 raise err from None
         except (urllib.error.URLError, TimeoutError, ConnectionError,
                 http.client.HTTPException) as e:

@@ -64,7 +64,7 @@ def target_error(line: str, kind: str | None, allow_search: bool) -> str | None:
         return (f"{line.strip()!r} is not a video, channel, playlist or search: use a YouTube link, a video ID, "
                 "channel:@name, playlist:ID or search:words")
     if kind == "search" and not allow_search:
-        return f"{line.strip()!r} is a search, which costs 100 units per 50 results: tick \"allow search\" to use it"
+        return f"{line.strip()!r} is a search, limited to 100 a day by YouTube: tick \"allow search\" to use it"
     return None
 
 

@@ -1,6 +1,7 @@
 """Text processing, target parsing, retries, config."""
 
 import io
+import json
 import os
 import urllib.error
 
@@ -8,8 +9,10 @@ import pytest
 
 from smdc import config, export, net, retention, sources, text
 from smdc.privacy import load_secret, pseudonymize, redact_mentions
+from smdc.budget import Budget
 from smdc.model import Container
 from smdc.sources.base import Unavailable
+from smdc.store import Store
 from smdc.sources.youtube import YouTubeSource, classify_target, explain_http_error, parse_video_id
 
 
@@ -265,6 +268,47 @@ def test_the_estimate_gives_the_usual_cost_and_the_worst_case():
     assert cost(582, max_items=100, max_replies=5) == (1, 1, 1)
     # the top of the ranking is what draws replies, not the whole video
     assert cost(50000, max_items=0, order="relevance", max_replies=10)[1] == 500 + 39 + 497
+
+
+SEARCHES_OUT = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "errors": [{"reason": "rateLimitExceeded", "domain": "global"}],
+                          "details": [{"reason": "RATE_LIMIT_EXCEEDED", "metadata": {"quota_limit": "defaultSearchListPerDayPerProject"}}]}}
+
+
+def test_the_search_limit_is_said_at_once_and_spends_no_unit(monkeypatch):
+    calls = []
+    def refuse(req, timeout):
+        calls.append(1)
+        raise urllib.error.HTTPError("u", 429, "x", {}, io.BytesIO(json.dumps(SEARCHES_OUT).encode()))
+    monkeypatch.setattr(net.urllib.request, "urlopen", refuse)
+    with pytest.raises(net.HttpError) as e:
+        net.get_json("http://x", {})
+    assert len(calls) == 1  # no retry: it will not lift before tomorrow
+    assert "100 searches a day" in explain_http_error(e.value)
+
+
+def test_a_passing_rate_limit_is_still_retried(monkeypatch):
+    calls = []
+    def refuse(req, timeout):
+        calls.append(1)
+        raise urllib.error.HTTPError("u", 429, "x", {}, io.BytesIO(b'{"error": {"errors": [{"reason": "rateLimitExceeded"}]}}'))
+    monkeypatch.setattr(net.urllib.request, "urlopen", refuse)
+    monkeypatch.setattr(net.time, "sleep", lambda s: None)
+    with pytest.raises(net.HttpError):
+        net.get_json("http://x", {}, retries=2)
+    assert len(calls) == 3
+
+
+def test_once_youtube_refuses_the_quota_nothing_is_left_today(tmp_path):
+    store = Store(tmp_path / "s.sqlite")
+    budget = Budget(store, "youtube", 10000)
+    def out(*a, **k):
+        raise net.HttpError(403, "quotaExceeded", {})
+    budget.charge("videos", 1)
+    assert budget.remaining() == 9999 and not budget.status()["refused"]
+    with pytest.raises(sources.BudgetExhausted, match="used up"):  # a sentence, for whoever shows it
+        YouTubeSource("k", budget, get=out).resolve(["v"])
+    assert budget.remaining() == 0 and budget.status()["refused"] and budget.used_today() == 2
+    assert budget.history()["endpoints"] == {"videos": 2}
 
 
 def test_a_video_that_really_is_forbidden_stays_unavailable():

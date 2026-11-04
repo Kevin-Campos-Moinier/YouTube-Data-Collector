@@ -15,7 +15,7 @@ from ..config import Collect
 from ..model import Container, Estimate, Page
 
 
-class BudgetExhausted(Exception):
+class BudgetExhausted(RuntimeError):
     """The platform refused a call because the budget/quota is used up."""
 
 

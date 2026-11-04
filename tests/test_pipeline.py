@@ -195,7 +195,8 @@ def test_target_expansion(tmp_path):
         env.source.expand(["search:tlou trailer"], col)
     before = env.budget.used_today()
     ids = env.source.expand(["search:tlou trailer"], config.Collect(allow_search=True))
-    assert ids == all_ids and env.budget.used_today() - before == 100
+    assert ids == all_ids and env.budget.used_today() == before  # searches have their own daily limit
+    assert env.budget.history()["searches"] == 1 and "search" not in env.budget.history()["endpoints"]
     with pytest.raises(ValueError, match="unrecognized"):
         env.source.expand(["https://vimeo.com/123"], col)
     with pytest.raises(ValueError, match="not found"):
