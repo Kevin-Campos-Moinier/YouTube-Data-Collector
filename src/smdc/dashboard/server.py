@@ -351,12 +351,12 @@ def make_handler(api: Api):
             try:
                 out, code = fn(arg), 200
             except (KeyError, ValueError, RuntimeError, StopIteration) as e:
-                out, code = {"error": str(e.args[0]) if e.args else type(e).__name__}, 400
+                out, code = {"error": str(e.args[0]) if e.args else "This request is missing something."}, 400
             except net.HttpError as e:
                 out, code = {"error": sources.explain_error(e)}, 400
             except Exception as e:
                 traceback.print_exc()
-                out, code = {"error": f"{type(e).__name__}: {e}"}, 500
+                out, code = {"error": "Something went wrong in the tool: the terminal window says what."}, 500
             self._send(code, json.dumps(out, default=str).encode(), "application/json")
 
         def _local(self) -> bool:

@@ -446,7 +446,7 @@ function show(view) {
   if (view === "new" && state && !state.has_key) view = "key";    // nothing can be collected without a key
   for (const v of ["key", "new", "runs", "quota", "detail"]) $("#view-" + v).classList.toggle("hidden", v !== view);
   document.querySelectorAll("nav a").forEach((b) => {
-    const on = b.dataset.view === view;
+    const on = b.dataset.view === (view === "key" ? "new" : view);
     b.classList.toggle("on", on);
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });

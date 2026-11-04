@@ -85,6 +85,13 @@ button, select, input, textarea { font: inherit; color: var(--ink); }
 .ui-info-panel { margin: 8px 0 12px; padding: 12px 14px; background: var(--surface-2); border-radius: var(--radius-sm); font-size: 14px; color: var(--ink-2); }
 .ui-info-panel p { margin: 0 0 8px; }
 .ui-info-panel p:last-child { margin-bottom: 0; }
+.ui-dialog { border: 0; border-radius: var(--radius); padding: 18px 20px; max-width: min(460px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.ui-dialog::backdrop { background: color-mix(in srgb, var(--ink) 35%, transparent); }
+.ui-dialog p { margin: 0 0 12px; }
+.ui-dialog input { width: 100%; box-sizing: border-box; }
+.ui-dialog-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ui-toast { position: fixed; right: 16px; bottom: 16px; z-index: 20; max-width: min(420px, calc(100vw - 32px)); padding: 10px 14px;
+  border-radius: var(--radius-sm); background: var(--ink); color: var(--page); font-size: 14px; }
 .ui-eyebrow { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .ui-lead { margin: 4px 0 0; font-family: var(--font-display); font-size: 34px; font-weight: 500; line-height: 1.15; text-wrap: balance; }
 .ui-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 22px; min-width: 0; }
