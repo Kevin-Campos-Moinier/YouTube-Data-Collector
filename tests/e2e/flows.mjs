@@ -87,7 +87,7 @@ try {
   await click("#b-start"); await until(`location.hash === "#run=brief"`, 5000); await sleep(150);
   await click("#b-pause");
   check("short run: it stops", await until(`!state.job.busy && /paused|done/.test(document.querySelector("#d-status").innerText)`, 15000), await status());
-  check("short run: the comments appear without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline")`, 5000), await text("#x-sample p"));
+  check("short run: the comments appear without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline, #x-timeline svg circle")`, 5000), await text("#x-sample p"));
   check("short run: Pause is off", await ev(`document.querySelector("#b-pause").disabled`));
 
   // ---------------------------------------------------------------- a run of many videos
@@ -107,6 +107,34 @@ try {
     await ev(`document.querySelector(${JSON.stringify(box)}).scrollTop = 0`);
   }
   check("wide window: no button to show the videos", !(await visible("#d-progress-all")) && !(await visible("#d-cov-all")));
+  // sorting by a column's title
+  const column = (box, n) => ev(`[...document.querySelectorAll(${JSON.stringify(box + " tr td:nth-child(" + n + ")")})].map(t => t.innerText.trim())`);
+  const titled = (box, key) => `${box} [data-sort=${key}]`;
+  const ownOrder = await column("#d-progress", 1);
+  const counts = async () => (await column("#d-progress", 4)).map(Number);
+  await click(titled("#d-progress", "comments")); await sleep(100);
+  let got = await counts();
+  check("sort: most comments first", got.every((v, n) => !n || got[n - 1] >= v) && got[0] === 7, got.join());
+  check("sort: the title says which way", (await ev(`document.querySelector("#d-progress th[aria-sort]")?.getAttribute("aria-sort")`)) === "descending" && /↓/.test(await text(titled("#d-progress", "comments"))));
+  await ev(`document.querySelector("#d-progress").scrollTop = 150`);
+  await ev(`document.querySelector(${JSON.stringify(titled("#d-progress", "comments"))}).focus()`);
+  await ev(`loadRun()`); await sleep(400);
+  got = await counts();
+  check("sort: a refresh keeps it", got[0] === 7 && got.every((v, n) => !n || got[n - 1] >= v), got.join());
+  check("sort: a refresh keeps the keyboard on the title", (await ev(`document.activeElement.dataset.sort`)) === "comments", await ev(`document.activeElement.tagName`));
+  await click(titled("#d-progress", "comments")); await sleep(100);
+  got = await counts();
+  check("sort: a second click, the other way", got[0] === 1 && got.every((v, n) => !n || got[n - 1] <= v), got.join());
+  check("sort: the list goes back to its top", (await ev(`document.querySelector("#d-progress").scrollTop`)) === 0);
+  await click(titled("#d-progress", "comments")); await sleep(100);
+  check("sort: a third click, the run's own order again", JSON.stringify(await column("#d-progress", 1)) === JSON.stringify(ownOrder) && !(await ev(`!!document.querySelector("#d-progress th[aria-sort]")`)));
+  const perVideoOwn = await column("#d-cov-videos", 1);
+  await click(titled("#d-cov-videos", "collected")); await sleep(100);
+  got = (await column("#d-cov-videos", 3)).map(t => parseInt(t, 10));
+  check("sort: Per video too", got[0] === 7 && got.every((v, n) => !n || got[n - 1] >= v), got.join());
+  check("sort: one table does not touch the other", JSON.stringify(await column("#d-progress", 1)) === JSON.stringify(ownOrder));
+  await click(titled("#d-cov-videos", "collected")); await click(titled("#d-cov-videos", "collected")); await sleep(100);
+  check("sort: Per video, back to its own order", JSON.stringify(await column("#d-cov-videos", 1)) === JSON.stringify(perVideoOwn));
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(200);
   const rowsSeen = box => ev(`[...document.querySelectorAll(${JSON.stringify(box + " tr")})].filter(r => r.checkVisibility()).length`);
   for (const [box, button, name] of [["#d-progress", "#d-progress-all", "Progress"], ["#d-cov-videos", "#d-cov-all", "Per video"]]) {
@@ -120,10 +148,30 @@ try {
   await ev(`loadRun()`); await sleep(400);
   check("Show all: a refresh keeps it", (await rowsSeen("#d-progress")) === 31 && !(await visible("#d-progress-all")));
   check("many videos on a phone: the page does not scroll sideways", await ev(`document.documentElement.scrollWidth <= innerWidth`));
+  await click(titled("#d-cov-videos", "collected")); await sleep(100);
+  check("a sort on a phone: the first 20 are the first of that order", (await ev(`[...document.querySelectorAll("#d-cov-videos tr")].filter(r => r.checkVisibility()).slice(1).every(r => parseInt(r.children[2].innerText, 10) >= 3)`)));   // 7, 6, 5, 4 and 3 comments: four videos each
+  await click(titled("#d-progress", "comments")); await sleep(100);
   await ev(`location.hash = "#run=brief"`); await until(`document.querySelectorAll("#d-progress tr").length === 2`, 5000); await sleep(200);
+  check("another run: no order left from the last", !(await ev(`[...document.querySelectorAll("#d-cov-videos th[aria-sort], #d-progress th[aria-sort]")].some(t => t.checkVisibility())`)));
   check("a run of one video on a phone: no button to show them all", !(await visible("#d-progress-all")) && !(await visible("#d-cov-all")));
   await ev(`location.hash = "#run=many"`); await until(`document.querySelectorAll("#d-progress tr").length === 31`, 5000); await sleep(200);
   check("back on the long run, without a reload: the first 20 again", (await rowsSeen("#d-progress")) === 21, String(await rowsSeen("#d-progress")));
+  // what needs a look comes first, when asked
+  await send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 1600, deviceScaleFactor: 1, mobile: false }); await sleep(150);
+  await go(QUICK, "#new");
+  await val("#f-name", "mixed"); await val("#f-targets", "v0000000000\nvdisabled00");
+  await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
+  await click("#b-start"); await until(`location.hash === "#run=mixed"`, 5000);
+  await until(`!state.job.busy && /done|finished/.test(document.querySelector("#d-status").innerText)`, 15000);
+  await until(`document.querySelectorAll("#d-progress tr").length === 3`, 5000); await sleep(300);
+  const statuses = () => column("#d-progress", 2);
+  const asRun = await statuses();
+  check("mixed run: the run's order puts the finished video first", /^done/.test(asRun[0]) && /^unavailable/.test(asRun[1]), asRun.join(" | "));
+  await click(titled("#d-progress", "status")); await sleep(100);
+  check("sort by status: what needs a look first", /^unavailable/.test((await statuses())[0]), (await statuses()).join(" | "));
+  await click(titled("#d-progress", "progress")); await sleep(100);
+  got = await statuses();
+  check("sort by progress: a video with no progress comes last", /^unavailable/.test(got[1]), got.join(" | "));
   await send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 1600, deviceScaleFactor: 1, mobile: false }); await sleep(150);
 
   // ---------------------------------------------------------------- planning errors
@@ -220,7 +268,7 @@ try {
   check("a finished run: Resume says why it is off", (await ev(`document.querySelector("#b-resume").title`)).includes("finished"), await ev(`document.querySelector("#b-resume").title`));
   await sleep(2500);
   const after = await text("#d-strip");
-  check("done: the comments are there without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline") && document.querySelectorAll("#x-langs .b").length > 0`, 4000), await text("#x-sample"));
+  check("done: the comments are there without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline, #x-timeline svg circle") && document.querySelectorAll("#x-langs .b").length > 0`, 4000), await text("#x-sample"));
   check("done: the draft is gone", (await ev(`localStorage.getItem("smdc.draft")`)) === null);
   check("done: the title is back", (await ev(`document.title`)) === "Social Media Data Collector", await ev(`document.title`));
   check("done: figures filled", /Collected\s+[1-9]/.test(after), after);
@@ -248,7 +296,7 @@ try {
   await until(`document.querySelector("#x-sample table")`, 5000);
   const all = await ev(`document.querySelectorAll("#x-sample tr").length`);
   check("explore: comments listed", all > 1, String(all));
-  check("explore: timeline drawn", await ev(`!!document.querySelector("#x-timeline svg polyline")`));
+  check("explore: timeline drawn", await ev(`!!document.querySelector("#x-timeline svg polyline, #x-timeline svg circle")`));
   check("explore: languages drawn", await ev(`document.querySelectorAll("#x-langs .b").length > 0`));
   check("explore: 50 comments a page", all === 51, String(all));
   const reach = () => ev(`(() => { const pos = document.querySelector("#x-pos").getBoundingClientRect(), ex = document.querySelector("#d-export").getBoundingClientRect(); return {toExport: ex.top - pos.top, win: innerHeight}; })()`);
@@ -276,7 +324,12 @@ try {
   check("explore on a phone: the next page opens at its start", await ev(`(() => { const t = document.querySelector("#x-pos").getBoundingClientRect().top; return t >= document.querySelector(".jump").getBoundingClientRect().bottom - 1 && t < innerHeight; })()`) && /^51–/.test(await text("#x-pos")), await text("#x-pos"));
   await click("#x-prev-end"); await sleep(600);
   check("explore on a phone: the page does not scroll sideways", await ev(`document.documentElement.scrollWidth <= innerWidth`));
+  const firstRow = await ev(`(() => { const r = document.querySelector("#x-sample tr:nth-child(2)"), t = r.querySelector("td.txt").getBoundingClientRect(), d = r.querySelector("td:first-child").getBoundingClientRect(), box = document.querySelector("#x-sample").getBoundingClientRect(); return {textAbove: t.bottom <= d.top + 1, inside: t.left >= box.left - 1 && t.right <= box.right + 1, titles: document.querySelector("#x-sample tr:first-child").checkVisibility()}; })()`);
+  check("explore on a phone: the text first, whole, in the width of the screen", firstRow.textAbove && firstRow.inside && !firstRow.titles, JSON.stringify(firstRow));
+  await ev(`renderTimeline([{container_id: "aaaaaaaaaaa", day: "2024-03-04", n: 5}])`);
+  check("a chart of one day shows that day", await ev(`(() => { const c = document.querySelector("#x-timeline circle"); if (!c) return false; const r = c.getBoundingClientRect(); return r.width > 0 && r.height > 0; })()`));
   await ev(`renderTimeline(Array.from({length: 700}, (_, n) => ({container_id: "aaaaaaaaaaa", day: new Date(Date.UTC(2024, 0, 1 + n)).toISOString().slice(0, 10), n: 1 + n % 5})))`);
+  check("a chart of several days draws a line", await ev(`!!document.querySelector("#x-timeline polyline")`));
   check("explore on a phone: the dates of a long chart do not overlap", await ev(`(() => { const t = [...document.querySelectorAll("#x-timeline .axis text[text-anchor]")].filter(e => /^\\d{4}-/.test(e.textContent)).map(e => e.getBoundingClientRect()).sort((a, b) => a.left - b.left); return t.length >= 2 && t.every((r, n) => !n || t[n - 1].right <= r.left); })()`));
   const millions = await ev(`(() => { const b = document.querySelector("#x-langs"); const keep = b.innerHTML; b.innerHTML = '<div class="b"><span>la</span><div class="t"><i style="width:50%"></i></div><span>1,000,000</span></div>'; const v = b.querySelector("span:last-child"); const out = v.scrollWidth <= v.clientWidth; b.innerHTML = keep; return out; })()`);
   check("explore on a phone: a count in the millions stays inside its bar's row", millions);

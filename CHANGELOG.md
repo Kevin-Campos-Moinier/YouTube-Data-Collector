@@ -19,7 +19,8 @@ All notable changes to this project are listed here. The format follows
 - Explore shows 50 comments a page in a list of its own, with its position and pages above it, so that Export and Log stay
   close however many comments a run holds; links on a run's page lead to them.
 - *Progress* and *Per video* stay short on a run of many videos: a list of their own on a wide window, the first 20 and
-  a button on a phone.
+  a button on a phone. Their column titles sort them, and a third click brings back the run's own order.
+- On a phone, Browse shows each comment's text first and in full. A chart of a single day now shows that day.
 - What the YouTube Researcher Program says about comments: nothing rules them out, nothing confirms them.
 
 ### Added

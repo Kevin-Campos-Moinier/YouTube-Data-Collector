@@ -61,6 +61,9 @@ button.btn.danger.solid { background: var(--critical); border-color: var(--criti
 .x-list th, .v-list th { position: sticky; top: 0; background: var(--surface); }
 .v-list { max-height: 50vh; overflow: auto; }
 .v-all { display: none; margin-top: 8px; }
+.th-sort { all: unset; cursor: pointer; }
+.th-sort:hover { text-decoration: underline; }
+.th-sort:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; border-radius: 2px; }
 .x-pager-end { display: none; }
 .jump { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 0 0 16px; padding: 6px 18px;
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
@@ -118,6 +121,15 @@ h1:focus { outline: none; }
   table { display: block; overflow-x: auto; }
   td.txt { min-width: 220px; } th, td { min-width: 64px; }
   .x-list, .v-list { max-height: none; overflow: visible; }
+  .th-sort { display: inline-flex; align-items: center; min-height: 32px; }
+  /* Browse: each comment's text first and in full, then what it is. */
+  .x-list table, .x-list tbody { display: block; }
+  .x-list tr:first-child { display: none; }
+  .x-list tr { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .x-list td { display: block; min-width: 0; padding: 0; border: 0; font-size: 12px; color: var(--muted); text-align: left; }
+  .x-list td:empty { display: none; }
+  .x-list td.likes::before { content: "♥ "; }
+  .x-list td.txt { order: -1; flex: 0 0 100%; min-width: 0; max-width: none; font-size: 14px; color: var(--text); }
   .v-list:not(.all) tr:nth-child(n+22) { display: none; }   /* the titles and the first 20 videos: VIDEOS_FIRST */
   .x-pager-end { display: flex; }
   .jump button { min-height: 32px; }
@@ -799,6 +811,7 @@ function renderRuns() {
 function openRun(name) {
   current = name; currentSeq = ""; exploreOffset = 0; samples = [];
   document.querySelectorAll(".v-list.all").forEach((b) => b.classList.remove("all"));
+  for (const box of Object.keys(videoSort)) delete videoSort[box];
   $("#nav-detail").textContent = name; $("#nav-detail").classList.remove("hidden");
   $("#nav-detail").href = "#run=" + encodeURIComponent(name);
   $("#d-refresh-ask").classList.add("hidden"); $("#d-delete").classList.add("hidden");
@@ -850,8 +863,11 @@ async function loadRun() {
     : latest.status !== "done" ? "Refresh is available once this run is finished." : "";
   $("#b-del-older").classList.toggle("hidden", d.snapshots.length < 2);
 
-  videoList("#d-progress", "#d-progress-all", d.containers.length, `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
-    <th class="num">comments</th><th class="num">replies</th></tr>` + d.containers.map((c) => {
+  videoList("#d-progress", "#d-progress-all", [
+    {key: "video", label: "video", first: 1}, {key: "status", label: "status", first: 1},
+    {key: "progress", label: "progress", first: 1, style: "width:34%"},
+    {key: "comments", label: "comments", first: -1, num: true}, {key: "replies", label: "replies", first: -1, num: true},
+  ], d.containers.map((c) => {
       const col = d.config.collect, tot = c.comment_count;
       const capped = col.order !== "oldest" && col.max_items > 0;
       const target = capped ? Math.min(col.max_items, tot ?? col.max_items) : tot;
@@ -863,11 +879,12 @@ async function loadRun() {
       const st = c.phase === "done" ? "done" : c.phase === "unavailable" ? "unavailable"
         : c.error ? "error" : !running ? "paused" : waiting ? "waiting for reset" : c.phase === "pending" ? "queued" : "running";
       const note = c.error || "";
-      return `<tr><td class="txt"><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a> ${esc(c.title || "")}</td>
+      return {sort: {video: c.title || c.container_id, status: STATUS_ORDER.indexOf(st), progress: c.phase === "unavailable" ? null : pct, comments: c.threads, replies: c.replies},
+        html: `<tr><td class="txt"><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a> ${esc(c.title || "")}</td>
         <td>${statusPill(st)} <span class="muted">${esc(note)}</span></td>
         <td>${c.phase === "unavailable" ? "" : `<div class="meter"><i style="width:${pct}%"></i></div><div class="hint">${bar}</div>`}</td>
-        <td class="num">${fmt(c.threads)}</td><td class="num">${fmt(c.replies)}</td></tr>`;
-    }).join("") + "</table>");
+        <td class="num">${fmt(c.threads)}</td><td class="num">${fmt(c.replies)}</td></tr>`};
+    }));
 
   renderOverall(d, running);
   renderCoverage(d.coverage);
@@ -1060,7 +1077,7 @@ async function loadExplore() {
   $("#x-sample").innerHTML =
     (d.sample.length ? `<table><tr><th>posted</th><th>video</th><th></th><th class="num">likes</th><th>lang</th><th>text</th></tr>` +
     d.sample.map((s) => `<tr><td>${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td><td>${esc(s.container_id)}</td>
-      <td class="muted">${s.depth ? "↳ reply" : ""}</td><td class="num">${fmt(s.like_count)}</td>
+      <td class="muted">${s.depth ? "↳ reply" : ""}</td><td class="num likes">${fmt(s.like_count)}</td>
       <td>${esc(s.lang || "")}${s.excluded_reason ? ` <span class="muted">(${esc(REASONS[s.excluded_reason])})</span>` : ""}</td>
       <td class="txt">${esc(s.text)}</td></tr>`).join("") + "</table>" : "");
 }
@@ -1107,7 +1124,9 @@ function renderTimeline(rows) {
   svg += "</g>";
   keys.forEach((k, s) => {
     const v = data.get(k);
-    svg += `<polyline fill="none" stroke="${color(k)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${v.map((n, i) => x(i) + "," + y(n)).join(" ")}"/>`;
+    svg += nb === 1   // a line of one point draws nothing
+      ? `<circle cx="${x(0)}" cy="${y(v[0])}" r="4" fill="${color(k)}"/>`
+      : `<polyline fill="none" stroke="${color(k)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${v.map((n, i) => x(i) + "," + y(n)).join(" ")}"/>`;
   });
   svg += `<line id="x-cross" y1="${m.t}" y2="${H - m.b}" stroke="${css("--muted")}" stroke-width="1" style="display:none"/>`;
   svg += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" id="x-hit"/></svg><div class="tip" id="x-tip"></div>`;
@@ -1176,11 +1195,41 @@ function renderOverall(d, running) {
 
 // A table of videos, which can be long: its own box on a wide window; on a phone its first 20, and a button (see .v-list).
 const VIDEOS_FIRST = 20;
-function videoList(box, button, n, html) {
-  $(box).innerHTML = html;
-  $(button).textContent = `Show all ${fmt(n)} videos`;
-  $(button).classList.toggle("hidden", n <= VIDEOS_FIRST || $(box).classList.contains("all"));
+const STATUS_ORDER = ["error", "running", "waiting for reset", "paused", "queued", "unavailable", "done"];  // what needs a look first
+const videoLists = {}, videoSort = {};   // per box: what it shows, and the order asked for (none: the run's own)
+function videoList(box, button, columns, rows) {
+  videoLists[box] = {button, columns, rows};
+  drawVideos(box);
 }
+function drawVideos(box) {
+  const {button, columns, rows} = videoLists[box], sort = videoSort[box];
+  const focused = document.activeElement?.closest?.(box) ? document.activeElement.dataset.sort : null;
+  const compare = (x, y) => typeof x === "string" ? x.localeCompare(y) : x - y;
+  const shown = !sort ? rows : rows.map((r, n) => [r, n]).sort(([a, i], [b, j]) => {
+    const x = a.sort[sort.key], y = b.sort[sort.key];
+    if (x == null || y == null) return (x == null) - (y == null) || i - j;   // what has no value yet comes last, either way
+    return compare(x, y) * sort.dir || i - j;
+  }).map(([r]) => r);
+  $(box).innerHTML = `<table><tr>${columns.map((c) => {
+    const on = sort?.key === c.key;
+    return `<th${c.num ? ' class="num"' : ""}${c.style ? ` style="${c.style}"` : ""}${on ? ` aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="th-sort" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${on ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
+  }).join("")}</tr>${shown.map((r) => r.html).join("")}</table>`;
+  $(button).textContent = `Show all ${fmt(rows.length)} videos`;
+  $(button).classList.toggle("hidden", rows.length <= VIDEOS_FIRST || $(box).classList.contains("all"));
+  if (focused) $(box).querySelector(`[data-sort="${focused}"]`)?.focus();
+}
+// A title sorts its column: first the most useful way, then the other, then back to the run's own order.
+for (const box of ["#d-progress", "#d-cov-videos"]) $(box).addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-sort]");
+  if (!b) return;
+  const col = videoLists[box].columns.find((c) => c.key === b.dataset.sort), now = videoSort[box];
+  if (now?.key !== col.key) videoSort[box] = {key: col.key, dir: col.first};
+  else if (now.dir === col.first) now.dir = -col.first;
+  else delete videoSort[box];
+  b.focus();
+  drawVideos(box);
+  $(box).scrollTop = 0;
+});
 document.querySelectorAll(".v-all").forEach((b) => { b.onclick = () => {
   const box = document.getElementById(b.dataset.box);
   box.classList.add("all"); b.classList.add("hidden"); box.focus();
@@ -1208,16 +1257,20 @@ function renderCoverage(cov) {
       Counts come from YouTube at check time and move while you collect, so percentages are approximate.
       ${skipped ? `Videos skipped: ${skipped}.` : ""}</p>`;
   $("#d-cov-per").classList.remove("hidden");
-  videoList("#d-cov-videos", "#d-cov-all", cov.videos.length, `
-    <table><tr><th>video</th><th class="num">on YouTube</th><th class="num">collected</th><th class="num">kept</th>
-      <th class="num">${cov.exhaustive ? "never returned" : "not sampled"}</th><th class="num">over reply cap</th><th class="num">replies not returned</th></tr>` +
-    cov.videos.map((v) => `<tr><td class="txt">${esc(v.title || v.container_id)}</td>
+  videoList("#d-cov-videos", "#d-cov-all", [
+    {key: "video", label: "video", first: 1}, {key: "on", label: "on YouTube", first: -1, num: true},
+    {key: "collected", label: "collected", first: -1, num: true}, {key: "kept", label: "kept", first: -1, num: true},
+    {key: "missing", label: cov.exhaustive ? "never returned" : "not sampled", first: -1, num: true},
+    {key: "cap", label: "over reply cap", first: -1, num: true}, {key: "notback", label: "replies not returned", first: -1, num: true},
+  ], cov.videos.map((v) => ({sort: {video: v.title || v.container_id, on: v.on_platform, collected: v.collected, kept: v.kept,
+      missing: v.done ? v.not_sampled : null, cap: v.over_reply_cap, notback: v.done ? v.not_returned : null},
+    html: `<tr><td class="txt">${esc(v.title || v.container_id)}</td>
       <td class="num">${v.on_platform == null ? "hidden" : fmt(v.on_platform)}</td>
       <td class="num">${fmt(v.collected)} <span class="muted">${v.on_platform ? pctOf(v.collected, v.on_platform) : ""}</span></td>
       <td class="num">${fmt(v.kept)}</td>
       <td class="num">${v.done ? fmt(v.not_sampled) : '<span class="muted">…</span>'}</td>
       <td class="num">${fmt(v.over_reply_cap)}</td>
-      <td class="num">${v.done ? fmt(v.not_returned) : '<span class="muted">…</span>'}</td></tr>`).join("") + "</table>");
+      <td class="num">${v.done ? fmt(v.not_returned) : '<span class="muted">…</span>'}</td></tr>`})));
 }
 
 // ---------- quota ----------

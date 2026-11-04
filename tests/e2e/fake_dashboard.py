@@ -23,7 +23,8 @@ from smdc.store import Store  # noqa: E402
 port, data, fail_after, flag = int(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3]), Path(sys.argv[4])
 data.mkdir(parents=True, exist_ok=True)
 fake = FakeYouTube({"aaaaaaaaaaa": make_video("aaaaaaaaaaa", 120), "bbbbbbbbbbb": make_video("bbbbbbbbbbb", 30),
-                    **{f"v{n:010d}": make_video(f"v{n:010d}", 2, replies=lambda i: 0) for n in range(30)}})  # a long run
+                    **{f"v{n:010d}": make_video(f"v{n:010d}", 1 + n % 7, replies=lambda i: 0) for n in range(30)},  # a long run
+                    "vdisabled00": {**make_video("vdisabled00", 1), "disabled": True}})
 calls = [0]
 DELAY = float(os.environ.get("FAKE_DELAY", ".12"))  # .03: a run over in a second or two, as a small real one is
 
