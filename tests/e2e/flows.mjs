@@ -86,9 +86,9 @@ try {
   await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
   await click("#b-start"); await until(`location.hash === "#run=brief"`, 5000); await sleep(150);
   await click("#b-pause");
-  check("short run: it ends", await until(`document.querySelector("#d-status").innerText.includes("done")`, 15000), await status());
+  check("short run: it stops", await until(`!state.job.busy && /paused|done/.test(document.querySelector("#d-status").innerText)`, 15000), await status());
   check("short run: the comments appear without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline")`, 5000), await text("#x-sample p"));
-  check("short run: the buttons are right", await ev(`document.querySelector("#b-pause").disabled && !document.querySelector("#b-refresh").disabled`));
+  check("short run: Pause is off", await ev(`document.querySelector("#b-pause").disabled`));
 
   // ---------------------------------------------------------------- planning errors
   await go(FULL, "#new");

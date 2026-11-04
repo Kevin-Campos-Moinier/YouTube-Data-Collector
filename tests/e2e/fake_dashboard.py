@@ -24,7 +24,7 @@ port, data, fail_after, flag = int(sys.argv[1]), Path(sys.argv[2]), int(sys.argv
 data.mkdir(parents=True, exist_ok=True)
 fake = FakeYouTube({"aaaaaaaaaaa": make_video("aaaaaaaaaaa", 120), "bbbbbbbbbbb": make_video("bbbbbbbbbbb", 30)})
 calls = [0]
-DELAY = float(os.environ.get("FAKE_DELAY", ".12"))  # 0: a run ends within a second, as a small real one does
+DELAY = float(os.environ.get("FAKE_DELAY", ".12"))  # .03: a run over in a second or two, as a small real one is
 
 
 def slow(*a, **k):

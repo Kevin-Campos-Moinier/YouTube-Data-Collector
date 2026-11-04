@@ -29,7 +29,7 @@ def test_journeys(tmp_path):
     flag = tmp_path / "quota-reset"
     procs, ports = [], {}
     # name, the key set beforehand, YouTube refusing after this many calls, the delay of its answers
-    for name, key, fail_after, delay in (("full", "KEY", 0, ".12"), ("low", "KEY", 12, ".12"), ("nokey", "", 0, ".12"), ("quick", "KEY", 0, "0")):
+    for name, key, fail_after, delay in (("full", "KEY", 0, ".12"), ("low", "KEY", 12, ".12"), ("nokey", "", 0, ".12"), ("quick", "KEY", 0, ".03")):
         ports[name] = free_port()
         env = {**os.environ, "SMDC_ENV": str(tmp_path / name / "conf" / ".env"), "YOUTUBE_API_KEY": key, "FAKE_DELAY": delay}
         procs.append(subprocess.Popen([sys.executable, str(HERE / "fake_dashboard.py"), str(ports[name]),
