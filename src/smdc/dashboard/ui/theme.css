@@ -108,6 +108,7 @@ button, select, input, textarea { font: inherit; color: var(--ink); }
 .ui-strip.c5 { --strip-min: 225px; }
 .ui-strip .l { font-size: 13px; color: var(--muted); }
 .ui-strip .v { font-size: 26px; font-weight: 600; line-height: 1.15; font-variant-numeric: proportional-nums; }
+.ui-strip .v.words { font-size: 18px; line-height: 1.25; }
 .ui-strip .v.serif { font-family: var(--font-display); font-weight: 500; }
 .ui-strip .s { font-size: 13px; color: var(--ink-2); }
 .ui-strip .row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
