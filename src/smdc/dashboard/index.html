@@ -58,7 +58,9 @@ button.btn.danger.solid { background: var(--critical); border-color: var(--criti
 .x-head { justify-content: space-between; margin-top: 8px; }
 .x-head .hint { margin: 0; }
 .x-list { max-height: 65vh; overflow: auto; }
-.x-list th { position: sticky; top: 0; background: var(--surface); }
+.x-list th, .v-list th { position: sticky; top: 0; background: var(--surface); }
+.v-list { max-height: 50vh; overflow: auto; }
+.v-all { display: none; margin-top: 8px; }
 .x-pager-end { display: none; }
 .jump { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 0 0 16px; padding: 6px 18px;
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
@@ -115,7 +117,8 @@ h1:focus { outline: none; }
   .bars .b { grid-template-columns: 110px 1fr 84px; }
   table { display: block; overflow-x: auto; }
   td.txt { min-width: 220px; } th, td { min-width: 64px; }
-  .x-list { max-height: none; overflow: visible; }
+  .x-list, .v-list { max-height: none; overflow: visible; }
+  .v-list:not(.all) tr:nth-child(n+22) { display: none; }   /* the titles and the first 20 videos: VIDEOS_FIRST */
   .x-pager-end { display: flex; }
   .jump button { min-height: 32px; }
 }
@@ -299,12 +302,18 @@ channel:@Owane"></textarea>
     <h2>Progress</h2>
     <div class="meter" id="d-overall"><i style="width:0"></i></div>
     <p class="hint" id="d-overall-text" aria-live="polite"></p>
-    <div id="d-progress"></div>
+    <div id="d-progress" class="v-list" tabindex="0" role="region" aria-label="Progress of each video"></div>
+    <button type="button" class="btn v-all hidden" id="d-progress-all" data-box="d-progress"></button>
   </div>
 
   <div class="card">
     <h2>Coverage: where the comments went</h2>
     <div id="d-coverage"></div>
+    <div id="d-cov-per" class="hidden">
+      <h3>Per video</h3>
+      <div id="d-cov-videos" class="v-list" tabindex="0" role="region" aria-label="Coverage of each video"></div>
+      <button type="button" class="btn v-all hidden" id="d-cov-all" data-box="d-cov-videos"></button>
+    </div>
   </div>
 
   <div class="card">
@@ -789,6 +798,7 @@ function renderRuns() {
 // ---------- run detail ----------
 function openRun(name) {
   current = name; currentSeq = ""; exploreOffset = 0; samples = [];
+  document.querySelectorAll(".v-list.all").forEach((b) => b.classList.remove("all"));
   $("#nav-detail").textContent = name; $("#nav-detail").classList.remove("hidden");
   $("#nav-detail").href = "#run=" + encodeURIComponent(name);
   $("#d-refresh-ask").classList.add("hidden"); $("#d-delete").classList.add("hidden");
@@ -840,7 +850,7 @@ async function loadRun() {
     : latest.status !== "done" ? "Refresh is available once this run is finished." : "";
   $("#b-del-older").classList.toggle("hidden", d.snapshots.length < 2);
 
-  $("#d-progress").innerHTML = `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
+  videoList("#d-progress", "#d-progress-all", d.containers.length, `<table><tr><th>video</th><th>status</th><th style="width:34%">progress</th>
     <th class="num">comments</th><th class="num">replies</th></tr>` + d.containers.map((c) => {
       const col = d.config.collect, tot = c.comment_count;
       const capped = col.order !== "oldest" && col.max_items > 0;
@@ -857,7 +867,7 @@ async function loadRun() {
         <td>${statusPill(st)} <span class="muted">${esc(note)}</span></td>
         <td>${c.phase === "unavailable" ? "" : `<div class="meter"><i style="width:${pct}%"></i></div><div class="hint">${bar}</div>`}</td>
         <td class="num">${fmt(c.threads)}</td><td class="num">${fmt(c.replies)}</td></tr>`;
-    }).join("") + "</table>";
+    }).join("") + "</table>");
 
   renderOverall(d, running);
   renderCoverage(d.coverage);
@@ -1164,12 +1174,25 @@ function renderOverall(d, running) {
   return pct;
 }
 
+// A table of videos, which can be long: its own box on a wide window; on a phone its first 20, and a button (see .v-list).
+const VIDEOS_FIRST = 20;
+function videoList(box, button, n, html) {
+  $(box).innerHTML = html;
+  $(button).textContent = `Show all ${fmt(n)} videos`;
+  $(button).classList.toggle("hidden", n <= VIDEOS_FIRST || $(box).classList.contains("all"));
+}
+document.querySelectorAll(".v-all").forEach((b) => { b.onclick = () => {
+  const box = document.getElementById(b.dataset.box);
+  box.classList.add("all"); b.classList.add("hidden"); box.focus();
+}; });
+
 function renderCoverage(cov) {
   const t = cov.total, parts = coverageParts(cov);
   const skipped = Object.entries(cov.skipped).map(([k, n]) => `${n} ${esc(k.replace(/_/g, " "))}`).join(", ");
   if (!t.videos) {
     $("#d-coverage").innerHTML = `<p class="muted">Shown once at least one video is finished (and its comment count is public).</p>` +
       (skipped ? `<p class="hint">Videos skipped: ${skipped}.</p>` : "");
+    $("#d-cov-per").classList.add("hidden");
     return;
   }
   const tot = t.on_platform;
@@ -1183,8 +1206,9 @@ function renderCoverage(cov) {
       ? "This run asked for every comment, so the grey part is what YouTube counts but its API never returned: comments held for review or filtered as spam, from hidden or deleted accounts, or posted after the count was taken."
       : "This run sampled part of each video, so the grey part mixes comments outside your sample with any the API never returned. Collect a video with “0 = all” comments to measure what the API withholds."}
       Counts come from YouTube at check time and move while you collect, so percentages are approximate.
-      ${skipped ? `Videos skipped: ${skipped}.` : ""}</p>
-    <h3>Per video</h3>
+      ${skipped ? `Videos skipped: ${skipped}.` : ""}</p>`;
+  $("#d-cov-per").classList.remove("hidden");
+  videoList("#d-cov-videos", "#d-cov-all", cov.videos.length, `
     <table><tr><th>video</th><th class="num">on YouTube</th><th class="num">collected</th><th class="num">kept</th>
       <th class="num">${cov.exhaustive ? "never returned" : "not sampled"}</th><th class="num">over reply cap</th><th class="num">replies not returned</th></tr>` +
     cov.videos.map((v) => `<tr><td class="txt">${esc(v.title || v.container_id)}</td>
@@ -1193,7 +1217,7 @@ function renderCoverage(cov) {
       <td class="num">${fmt(v.kept)}</td>
       <td class="num">${v.done ? fmt(v.not_sampled) : '<span class="muted">…</span>'}</td>
       <td class="num">${fmt(v.over_reply_cap)}</td>
-      <td class="num">${v.done ? fmt(v.not_returned) : '<span class="muted">…</span>'}</td></tr>`).join("") + "</table>";
+      <td class="num">${v.done ? fmt(v.not_returned) : '<span class="muted">…</span>'}</td></tr>`).join("") + "</table>");
 }
 
 // ---------- quota ----------

@@ -90,6 +90,42 @@ try {
   check("short run: the comments appear without a reload", await until(`document.querySelectorAll("#x-sample tr").length > 1 && !!document.querySelector("#x-timeline svg polyline")`, 5000), await text("#x-sample p"));
   check("short run: Pause is off", await ev(`document.querySelector("#b-pause").disabled`));
 
+  // ---------------------------------------------------------------- a run of many videos
+  await go(QUICK, "#new");
+  await val("#f-name", "many"); await val("#f-targets", Array.from({ length: 30 }, (_, n) => "v" + String(n).padStart(10, "0")).join("\n"));
+  await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
+  await click("#b-start"); await until(`location.hash === "#run=many"`, 5000);
+  check("many videos: the run ends", await until(`!state.job.busy && /done/.test(document.querySelector("#d-status").innerText)`, 30000), await status());
+  await until(`document.querySelectorAll("#d-cov-videos tr").length === 31`, 5000);
+  await send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(200);
+  for (const [box, name] of [["#d-progress", "Progress"], ["#d-cov-videos", "Per video"]]) {
+    const m = await ev(`(() => { const b = document.querySelector(${JSON.stringify(box)}); b.scrollIntoView(); b.scrollTop = 200; const r = b.getBoundingClientRect(), th = b.querySelector("th").getBoundingClientRect(); return {h: r.height, inner: b.scrollHeight, win: innerHeight, rows: b.querySelectorAll("tr").length, titleIn: th.top >= r.top - 1 && th.bottom <= r.bottom}; })()`);
+    check(`${name}: 30 videos, in a list of its own`, m.rows === 31 && m.h <= m.win * .5 + 1 && m.inner > m.h && m.titleIn, JSON.stringify(m));
+    await ev(`document.querySelector(${JSON.stringify(box)}).scrollTop = 200`);
+    await ev(`loadRun()`); await sleep(400);
+    check(`${name}: a refresh keeps the place in the list`, (await ev(`document.querySelector(${JSON.stringify(box)}).scrollTop`)) === 200, String(await ev(`document.querySelector(${JSON.stringify(box)}).scrollTop`)));
+    await ev(`document.querySelector(${JSON.stringify(box)}).scrollTop = 0`);
+  }
+  check("wide window: no button to show the videos", !(await visible("#d-progress-all")) && !(await visible("#d-cov-all")));
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(200);
+  const rowsSeen = box => ev(`[...document.querySelectorAll(${JSON.stringify(box + " tr")})].filter(r => r.checkVisibility()).length`);
+  for (const [box, button, name] of [["#d-progress", "#d-progress-all", "Progress"], ["#d-cov-videos", "#d-cov-all", "Per video"]]) {
+    check(`${name} on a phone: the titles and the first 20`, (await rowsSeen(box)) === 21, String(await rowsSeen(box)));
+    check(`${name} on a phone: no box inside the page`, await ev(`(() => { const b = document.querySelector(${JSON.stringify(box)}); return b.scrollHeight <= b.clientHeight + 1; })()`));
+    check(`${name} on a phone: a button says how many there are`, await visible(button) && /^Show all 30 videos$/.test(await text(button)), await text(button));
+  }
+  await click("#d-progress-all"); await sleep(100);
+  check("Show all: every video of that table", (await rowsSeen("#d-progress")) === 31 && (await rowsSeen("#d-cov-videos")) === 21, String(await rowsSeen("#d-progress")));
+  check("Show all: the button goes, the keyboard stays in the list", !(await visible("#d-progress-all")) && (await ev(`document.activeElement.id`)) === "d-progress");
+  await ev(`loadRun()`); await sleep(400);
+  check("Show all: a refresh keeps it", (await rowsSeen("#d-progress")) === 31 && !(await visible("#d-progress-all")));
+  check("many videos on a phone: the page does not scroll sideways", await ev(`document.documentElement.scrollWidth <= innerWidth`));
+  await ev(`location.hash = "#run=brief"`); await until(`document.querySelectorAll("#d-progress tr").length === 2`, 5000); await sleep(200);
+  check("a run of one video on a phone: no button to show them all", !(await visible("#d-progress-all")) && !(await visible("#d-cov-all")));
+  await ev(`location.hash = "#run=many"`); await until(`document.querySelectorAll("#d-progress tr").length === 31`, 5000); await sleep(200);
+  check("back on the long run, without a reload: the first 20 again", (await rowsSeen("#d-progress")) === 21, String(await rowsSeen("#d-progress")));
+  await send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 1600, deviceScaleFactor: 1, mobile: false }); await sleep(150);
+
   // ---------------------------------------------------------------- planning errors
   await go(FULL, "#new");
   await click("#b-plan"); await until(`!document.querySelector("#b-plan").disabled`);
