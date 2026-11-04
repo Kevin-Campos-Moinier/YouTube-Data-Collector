@@ -25,6 +25,7 @@ ws.onmessage = ev => {
 };
 for (const d of ["Page", "Runtime", "Log", "Network"]) await send(d + ".enable");
 await send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 1600, deviceScaleFactor: 1, mobile: false });
+await send("Emulation.setFocusEmulationEnabled", { enabled: true });   // a page without a window gets no focus events otherwise
 const ev = async expr => { const r = await send("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || expr); return r.result.value; };
 const until = async (expr, ms = 20000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await ev(expr)) return true; await sleep(150); } return false; };
 const go = async (p, hash) => { await send("Page.navigate", { url: "about:blank" }); await send("Page.navigate", { url: `http://127.0.0.1:${p}/${hash}` }); await until(`!!window.state || document.readyState === "complete"`); await sleep(900); };
@@ -140,17 +141,19 @@ try {
   check("done: progress at 100 %", await ev(`[...document.querySelectorAll("#d-progress .meter i")].every(i => i.style.width === "100%")`));
 
   // ---------------------------------------------------------------- refresh snapshot
-  acceptDialog = false; await click("#b-refresh"); await sleep(800);
-  check("refresh refused in the dialog: nothing starts", dialogs === 1 && !(await status()).includes("running"), `${dialogs} ${await status()}`);
-  acceptDialog = true; await click("#b-refresh");
+  await click("#b-refresh"); await sleep(300);
+  check("refresh: asks first, in the page", await visible("#b-refresh-yes") && !(await status()).includes("running"), await status());
+  await click("#b-refresh-no"); await sleep(300);
+  check("refresh cancelled: nothing starts", !(await visible("#b-refresh-yes")) && !(await status()).includes("running"), await status());
+  await click("#b-refresh"); await click("#b-refresh-yes");
   check("refresh accepted: runs", await until(`document.querySelector("#d-status").innerText.includes("running")`, 5000), await status());
   check("refresh: finishes", await until(`document.querySelector("#d-status").innerText.includes("done")`, 90000), await status());
   await sleep(2500);
-  check("two snapshots: strip says so", /snapshot 2, 2 kept/.test(await text("#d-strip")), await text("#d-strip"));
+  check("two snapshots: strip says so", /snapshot 2 of the 2 stored/.test(await text("#d-strip")), await text("#d-strip"));
   check("two snapshots: selector shown", await ev(`!document.querySelector("#d-seq").classList.contains("hidden")`));
   check("two snapshots: diff with its 4 figures", await until(`document.querySelectorAll("#d-diff .ui-strip > div").length === 4`, 5000));
   await val("#d-seq", "1"); await sleep(1200);
-  check("snapshot selector: goes back to the first", /snapshot 1, 2 kept/.test(await text("#d-strip")), await text("#d-strip"));
+  check("snapshot selector: goes back to the first", /snapshot 1 of the 2 stored/.test(await text("#d-strip")), await text("#d-strip"));
   await val("#d-seq", "2"); await sleep(1000);
 
   // ---------------------------------------------------------------- explore
@@ -239,6 +242,31 @@ try {
   check("dark: the page really changes", await ev(`getComputedStyle(document.body).backgroundColor`) !== "rgb(244, 243, 238)");
   await click("#theme");
 
+  // ---------------------------------------------------------------- history, keyboard, explanations
+  await go(FULL, "#runs");
+  await click('nav a[data-view="quota"]'); await sleep(250);
+  await click('nav a[data-view="new"]'); await sleep(250);
+  await ev(`history.back()`); await sleep(350);
+  check("Back: the previous page", await visible("#view-quota") && (await ev(`location.hash`)) === "#quota");
+  await ev(`history.back()`); await sleep(350);
+  check("Back again", await visible("#view-runs"));
+  await ev(`history.forward()`); await sleep(350);
+  check("Forward", await visible("#view-quota"));
+  check("the current tab is marked for a screen reader", (await ev(`document.querySelector('nav a[aria-current="page"]')?.dataset.view`)) === "quota");
+  check("after moving, the keyboard starts at the title", (await ev(`document.activeElement.tagName`)) === "H1", await ev(`document.activeElement.tagName`));
+  await go(FULL, "#run=first"); await until(`document.querySelector("#d-name").innerText === "first"`, 4000); await sleep(600);
+  check("every field has a name, on every page", (await ev(`[...document.querySelectorAll("input,select,textarea")].filter(i => !i.labels?.length && !i.getAttribute("aria-label") && !i.closest("label") && i.type !== "hidden").map(i => i.id || i.type).join()`)) === "", await ev(`[...document.querySelectorAll("input,select,textarea")].filter(i => !i.labels?.length && !i.getAttribute("aria-label") && !i.closest("label")).map(i => i.id || i.type).join()`));
+  check("the quota gauge can be reached by keyboard", await ev(`document.querySelector(".quota").tabIndex >= 0 && document.querySelector(".quota").tagName === "A"`));
+  await ev(`document.querySelector("#d-strip .term").focus()`); await sleep(100);
+  check("a word is explained on focus", /allowance|collection of a run|passed your/.test(await text("#term-tip")) && await ev(`!document.querySelector("#term-tip").classList.contains("hidden")`), await text("#term-tip"));
+  const held = await ev(`document.activeElement.dataset.tip`);
+  await sleep(2500);
+  check("refreshing the page does not lose the keyboard's place", (await ev(`document.activeElement.dataset.tip`)) === held);
+  await ev(`document.activeElement.blur()`); await sleep(100);
+  check("the explanation goes away", await ev(`document.querySelector("#term-tip").classList.contains("hidden")`));
+  await go(FULL, "#runs");
+  check("a run in the list is a real link", (await ev(`document.querySelector("#runs-table a")?.getAttribute("href")`)) === "#run=first");
+
   // ---------------------------------------------------------------- deadlines and deleting
   await go(FULL, "#run=first"); await until(`document.querySelector("#d-name").innerText === "first"`, 4000); await sleep(500);
   await click("#b-again"); await sleep(300);
@@ -257,7 +285,7 @@ try {
   check("delete: older snapshots offered, there are two", await visible("#b-del-older"));
   await shot("delete-panel");
   await click("#b-del-cancel");
-  check("cancel: the panel closes, nothing is gone", !(await visible("#d-delete")) && /snapshot 2, 2 kept/.test(await text("#d-strip")));
+  check("cancel: the panel closes, nothing is gone", !(await visible("#d-delete")) && /snapshot 2 of the 2 stored/.test(await text("#d-strip")));
   await val("#e-format", "csv"); await val("#d-seq", "1"); await sleep(900);
   await click("#b-export"); await until(`/Written to/.test(document.querySelector("#e-out").innerText)`, 8000);
   const firstExport = await ev(`document.querySelector("#e-out code").innerText`);
@@ -266,7 +294,7 @@ try {
   const secondExport = await ev(`document.querySelector("#e-out code").innerText`);
   check("two exports, one per snapshot", existsSync(firstExport) && existsSync(secondExport) && firstExport !== secondExport, `${firstExport} ${secondExport}`);
   await click("#b-delete"); await click("#b-del-older");
-  check("delete older: one snapshot left", await until(`document.querySelector("#d-seq").classList.contains("hidden") && !document.querySelector("#d-strip").innerText.includes("kept\\n") && !/, \\d kept/.test(document.querySelector("#d-strip").innerText)`, 6000), await text("#d-strip"));
+  check("delete older: one snapshot left", await until(`document.querySelector("#d-seq").classList.contains("hidden") && !/stored/.test(document.querySelector("#d-strip").innerText)`, 6000), await text("#d-strip"));
   check("delete older: says what went", /Deleted 1 older snapshot/.test(await text("#d-msg")), await text("#d-msg"));
   check("delete older: its export went, the latest's stayed", !existsSync(firstExport) && existsSync(secondExport));
   check("delete older: the selector is gone", await ev(`document.querySelector("#d-seq").classList.contains("hidden")`));
@@ -318,6 +346,7 @@ try {
 } catch (e) { ko++; console.log("CRASH", e.message); }
 
 check("no script error on any page", jsErrors.length === 0, jsErrors.slice(0, 5).join(" || "));
+check("the browser's own dialogs are never used", dialogs === 0, String(dialogs));
 check("no server error (5xx)", badStatus.length === 0, badStatus.slice(0, 5).join(" || "));
 console.log(`\n${ok} ok, ${ko} failed`);
 ws.close(); chrome.kill(); await sleep(400); rmSync(profile, { recursive: true, force: true });

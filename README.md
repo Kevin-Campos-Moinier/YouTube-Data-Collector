@@ -123,22 +123,32 @@ to type plain `smdc …` afterwards.
 Start it with the launcher (above) or `smdc dashboard`. It only listens on your own
 computer (127.0.0.1).
 
-1. **New run**: paste video URLs (or `channel:@name`, `playlist:…`), choose the order, the number
-   of comments and replies, and the languages to keep.
+![The New run page: videos, what to keep, cost](docs/img/new-run.png)
+
+1. **New run**: paste video URLs (or `channel:@name`, `playlist:…`): the box says what it understood and which line is
+   wrong. Choose *Quick sample* or *All comments* and the languages to keep; the rest is under *More options*. Your
+   draft survives a reload, and *New run from these settings* starts from an earlier run.
 2. **Check videos & estimate cost**: shows each video's title and comment count, flags disabled
-   or missing ones, and estimates the quota cost against what is left today.
-3. **Start collection**: shows per-video progress, the quota gauge, the filtering report and the log.
-   *Pause* and *Resume* work at any time. Tick *continue after quota reset* for runs larger than
-   one day's quota, and leave the dashboard running.
+   or missing ones, and estimates the quota cost against what is left today. Changing a setting afterwards updates the
+   cost without spending anything.
+3. **Start collection**: shows overall and per-video progress, the time left, the quota gauge, the filtering report and
+   the log. *Pause* and *Resume* work at any time. If the quota runs out, the page says when it comes back; *Continue
+   automatically after the reset* takes it from there, as long as the terminal window stays open.
+
+![A run's page: figures, progress, coverage](docs/img/run.png)
+
 4. **Coverage** on the run page: how many of the video's comments on YouTube were collected,
    and where the others went (outside your sample, over your reply cap, reported by YouTube but
    never returned by its API, or filtered out by language). Collect a video with "0 = all"
    comments to measure what the API itself withholds.
 5. **Explore**: comments per day for each video, languages, most liked comments, and a searchable
-   table.
+   table, page by page, by date or likes.
 6. **Refresh snapshot** (later): collects the same videos again and lists what changed (likes,
    comments no longer public).
-7. **Export**: CSV (tick *Excel* for French Excel), JSONL or Parquet, written to `exports/` in the data folder.
+7. **Export**: CSV (tick *Excel* for French Excel), JSONL or Parquet, written to `exports/` in the data folder. Preview
+   what it holds, then download the .zip or copy its path from the list of the run's exports.
+8. **Delete**: a run, or the older snapshots a refresh leaves behind. YouTube asks that data be refreshed or deleted
+   after 30 days: *Runs* shows each run's date.
 
 The **Quota** page (or a click on the header gauge) shows today's units left, what they were
 spent on (by type of call and by run), and the last 14 days.
@@ -149,6 +159,8 @@ repeated from the command line.
 ## Use it: the command line
 
 ```bash
+smdc init                       # save your API key, after testing it (1 unit)
+smdc doctor [--online]          # check this computer's setup
 cp config.example.toml my-run.toml       # edit it: every option is commented
 smdc estimate my-run.toml       # check videos and cost (≈1 unit per 50 videos)
 smdc run my-run.toml            # collect; add --wait to span several days
@@ -170,6 +182,8 @@ Everything lives in the data folder (`~/smdc-data` unless `SMDC_DATA` or
 |---|---|
 | **run** | One study's collection settings (name, targets, parameters), frozen at creation |
 | **snapshot** | One execution of a run: the first collection, then one per `refresh` |
+| **unit** | YouTube's allowance: a key has 10,000 per day by default; see [Quota](#quota) |
+| **kept** | A comment that passed the language filter; the others stay in the database, with an `excluded_reason` |
 | **container** | What comments hang under: a YouTube video (a Reddit post, later) |
 | **item** | One comment (`depth` 0) or reply (`depth` 1), with `thread_id` and `parent_id` |
 | **sample** | The comments the settings asked for: the first N threads in the chosen order and up to M replies each. Language filtering does **not** change the sample: it labels comments inside it |

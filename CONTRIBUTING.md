@@ -15,6 +15,9 @@ pytest                                              # offline, no API key needed
 The tests run against an in-memory fake of the YouTube API (`tests/fakeyt.py`), on Windows,
 macOS and Linux in CI. A change that alters behaviour comes with a test.
 
+The dashboard's journeys run by real clicks in Chrome, on the same fake: `SMDC_E2E=1 pytest tests/test_e2e.py` (needs
+Chrome and Node 22; about two minutes, no key and no quota).
+
 ## Where things are
 
 The README's [Code layout](README.md#code-layout) section describes each module, and

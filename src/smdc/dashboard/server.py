@@ -9,7 +9,6 @@ import dataclasses
 import datetime as dt
 import json
 import os
-import re
 import shutil
 import tempfile
 import threading
@@ -37,7 +36,6 @@ EXPLORE_PAGE = 200
 EXPLORE_ORDER = {"oldest": "created_at", "newest": "created_at DESC", "liked": "like_count DESC, created_at"}
 RESOLVED_FOR = 3600                    # seconds a check of the videos stays good for
 MAX_BODY = 1_000_000                   # every request this page sends fits well within this
-API_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{20,100}$")
 
 
 class Runner:
@@ -267,7 +265,7 @@ class Api:
     def post_key(self, body):
         """Tries a key, then saves it. The key is never sent back, logged or kept in an error."""
         key = str(body.get("key", "")).strip()
-        if not API_KEY_RE.match(key):
+        if not config.valid_api_key(key):
             raise ValueError("that does not look like an API key: it is one long word of letters, digits, - and _")
         check_key("youtube", key, self._budget())
         config.save_api_key(key)

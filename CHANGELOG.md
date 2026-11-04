@@ -30,8 +30,15 @@ All notable changes to this project are listed here. The format follows
 - Results: download an export as a .zip, or copy its path, from a list of the run's exports; preview what an export
   holds; browse comments page by page, sorted by date or likes.
 
+- `smdc init` saves the API key after testing it. `smdc doctor` checks the setup and says what to do. Each command
+  says what comes next, and `--help` gives examples.
+- *units*, *snapshot* and *kept* are explained where they appear, with the mouse or the keyboard.
+
 ### Changed
 
+- The browser's Back and Forward buttons work, and every view has an address. Every field has a name for screen readers,
+  errors and status changes are announced, and the quota gauge and the runs in the list can be reached by keyboard.
+- Refreshing a snapshot asks for confirmation in the page.
 - Changing a setting after the estimate updates the cost for free, and no longer asks to check the videos again.
 - Errors from the API say what to do (key not valid, API not enabled, key restrictions, quota, no connection), in the
   dashboard and on the command line.
@@ -39,6 +46,7 @@ All notable changes to this project are listed here. The format follows
 
 ### Fixed
 
+- A missing file on the command line gave `error: 2`; it now names the file.
 - The dashboard could keep showing a run as "running", with the wrong buttons, after it was paused or finished between
   two refreshes of the page.
 

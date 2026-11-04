@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ORDERS = ("relevance", "time", "oldest")
+API_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{20,100}$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 # Languages lingua chooses among. A short list keeps short comments from being
 # attributed to rare languages ("lol ok" -> Zulu); widen it if your corpus needs.
@@ -184,6 +185,11 @@ def load_dotenv(*paths: Path) -> None:
                     k, v = line.split("=", 1)
                     os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
             return
+
+
+def valid_api_key(key: str) -> bool:
+    """Whether this looks like an API key: one word, which also keeps it from breaking the .env."""
+    return bool(API_KEY_RE.match(key))
 
 
 def save_api_key(key: str, name: str = "YOUTUBE_API_KEY") -> Path:
