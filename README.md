@@ -236,8 +236,10 @@ to get around the limit: the YouTube API Terms forbid it.
 - **Publishing:** the same policies forbid redistributing any portion of the API's data (III.G.1.a), with no exception for
   research, and pseudonymized comments are still that data. Figures derived from it are restricted too (III.E.2,
   III.E.4.h); the [YouTube Researcher Program](https://research.youtube/policies/terms/) allows publishing derived metrics
-  and freezing the data to finish an analysis (5.a, 7.c), but not passing the data on (7.a.i), and it presents itself
-  around video metadata: check that it covers comments. For a transparent paper, share the method: the code, the settings
+  and freezing the data to finish an analysis (5.a, 7.c), but not passing the data on (7.a.i). Its pages speak of video
+  metadata and never mention comments, while its terms cover any data read through the API (1.b) and exclude no endpoint:
+  nothing rules comments out, nothing confirms them, so name comments in your application and keep YouTube's answer.
+  Whatever it does not grant stays under the policies above (2). For a transparent paper, share the method: the code, the settings
   (`run_manifest.json`), the codebook and the list of videos, so that others can collect again (the terms do not address
   lists of videos). This is a reading of YouTube's terms, not legal advice: ask your data protection officer, and
   [YouTube](https://support.google.com/youtube/contact/yt_api_form) about your case.

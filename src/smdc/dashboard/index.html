@@ -35,7 +35,7 @@ label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 3p
 input[type=text], input[type=number], input[type=date], select, textarea {
   width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--bg); color: var(--text); font: inherit; }
-textarea { min-height: 110px; font-family: var(--font-mono); font-size: 13px; }
+textarea { display: block; min-height: 110px; max-height: 60vh; resize: vertical; font-family: var(--font-mono); font-size: 13px; }
 .check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); margin: 4px 0; }
 .check input { margin: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -55,6 +55,16 @@ button.btn.danger.solid { background: var(--critical); border-color: var(--criti
 .steps li { margin: 6px 0; }
 .chips label:has(input:checked) { background: var(--tool-soft); color: var(--tool); }
 .pager { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.x-head { justify-content: space-between; margin-top: 8px; }
+.x-head .hint { margin: 0; }
+.x-list { max-height: 65vh; overflow: auto; }
+.x-list th { position: sticky; top: 0; background: var(--surface); }
+.x-pager-end { display: none; }
+.jump { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 0 0 16px; padding: 6px 18px;
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
+.jump button { background: none; border: 0; padding: 2px 0; color: var(--accent-ink); font: inherit; text-decoration: underline; cursor: pointer; }
+.jump-to, #x-pos { scroll-margin-top: 56px; }
+.jump-to:focus { outline: none; }
 .notice { background: var(--surface-2); border-left: 3px solid var(--warning); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 14px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; }
@@ -67,7 +77,7 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); 
 .pill.good::before { background: var(--good); } .pill.warning::before { background: var(--warning); }
 .pill.serious::before { background: var(--serious); } .pill.critical::before { background: var(--critical); }
 .pill.running::before { background: var(--tool); }
-.bars .b { display: grid; grid-template-columns: 170px 1fr 70px; gap: 8px; align-items: center; margin: 5px 0; }
+.bars .b { display: grid; grid-template-columns: 170px 1fr 84px; gap: 8px; align-items: center; margin: 5px 0; }
 .bars .b .t { height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; }
 .bars .b .t i { display: block; height: 100%; background: var(--tool); border-radius: 999px; min-width: 2px; }
 .bars .b .t i.x { background: var(--other); }
@@ -102,9 +112,12 @@ h1:focus { outline: none; }
 @media (max-width: 640px) {
   main { padding: 8px 16px 40px; } .quota { min-width: 100%; }
   button.btn, .chips label, label.check, a.btn-link { min-height: 32px; display: inline-flex; align-items: center; }
-  .bars .b { grid-template-columns: 110px 1fr 50px; }
+  .bars .b { grid-template-columns: 110px 1fr 84px; }
   table { display: block; overflow-x: auto; }
   td.txt { min-width: 220px; } th, td { min-width: 64px; }
+  .x-list { max-height: none; overflow: visible; }
+  .x-pager-end { display: flex; }
+  .jump button { min-height: 32px; }
 }
 </style>
 </head>
@@ -155,12 +168,9 @@ h1:focus { outline: none; }
   <section class="ui-strip" id="new-strip" aria-label="In brief"></section>
   <div class="card">
     <h2>1. Videos</h2>
-    <textarea id="f-targets" aria-label="Videos" aria-describedby="f-targets-hint" placeholder="One per line — any of:
-https://www.youtube.com/watch?v=VLGy63pt9vA
-W2Wnvvj33Wo   # a comment after the ID is fine
-channel:@PlayStation      (latest uploads)
-playlist:PL...
-search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
+    <textarea id="f-targets" aria-label="Videos" aria-describedby="f-targets-forms f-targets-hint" placeholder="https://www.youtube.com/watch?v=kkmqgKAoB6s
+channel:@Owane"></textarea>
+    <p class="hint" id="f-targets-forms">One per line: a video URL or ID, <code>channel:@name</code> (its latest uploads), <code>playlist:ID</code>, or <code>search:words</code> (100 searches a day). Anything after “ #” is a note for you.</p>
     <div class="hint" id="f-targets-hint" aria-live="polite"></div>
     <label class="check hidden" id="f-search-row"><input type="checkbox" id="f-search"> allow search lines (YouTube allows 100 searches a day)</label>
   </div>
@@ -281,6 +291,10 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
     <div id="d-err" class="err" role="alert"></div>
   </div>
 
+  <nav class="jump" aria-label="On this page"><span class="muted">Go to</span>
+    <button type="button" data-jump="d-explore">Explore</button><button type="button" data-jump="d-export">Export</button><button type="button" data-jump="d-logcard">Log</button>
+  </nav>
+
   <div class="card">
     <h2>Progress</h2>
     <div class="meter" id="d-overall"><i style="width:0"></i></div>
@@ -309,7 +323,7 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
     <div id="d-diff"></div>
   </div>
 
-  <div class="card">
+  <div class="card jump-to" id="d-explore" tabindex="-1">
     <div class="row" style="justify-content:space-between"><h2 style="margin:0">Explore</h2>
       <label class="check"><input type="checkbox" id="x-kept" checked> kept comments only</label></div>
     <h3>Comments posted per day</h3>
@@ -329,13 +343,19 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
       <select id="x-sort" aria-label="Order" style="max-width:160px"><option value="oldest">oldest first</option>
         <option value="newest">newest first</option><option value="liked">most liked first</option></select>
     </div>
-    <div id="x-sample" style="margin-top:8px"></div>
-    <div class="pager hidden" id="x-pager">
-      <button class="btn" id="x-prev">Previous</button><button class="btn" id="x-next">Next</button>
+    <div class="row x-head">
+      <p class="hint" id="x-pos" aria-live="polite"></p>
+      <div class="pager hidden" id="x-pager">
+        <button class="btn" id="x-prev">Previous</button><button class="btn" id="x-next">Next</button>
+      </div>
+    </div>
+    <div id="x-sample" class="x-list" tabindex="0" role="region" aria-label="Comments"></div>
+    <div class="pager x-pager-end hidden" id="x-pager-end">
+      <button class="btn" id="x-prev-end">Previous</button><button class="btn" id="x-next-end">Next</button>
     </div>
   </div>
 
-  <div class="card">
+  <div class="card jump-to" id="d-export" tabindex="-1">
     <h2>Export</h2>
     <div class="row">
       <select id="e-format" aria-label="Format" style="width:auto"><option>csv</option><option>jsonl</option><option>parquet</option></select>
@@ -350,7 +370,7 @@ search:star wars outlaws trailer   (limited to 100 searches a day)"></textarea>
     <div id="e-list" style="margin-top:10px"></div>
   </div>
 
-  <div class="card"><h2>Log</h2><div class="log" id="d-log"></div></div>
+  <div class="card jump-to" id="d-logcard" tabindex="-1"><h2>Log</h2><div class="log" id="d-log"></div></div>
 </section>
 </main>
 
@@ -402,7 +422,9 @@ const RULES = `
   <p><b>Figures drawn from the data are restricted too</b> (III.E.2, III.E.4.h). The
     <a href="https://research.youtube/policies/terms/" target="_blank" rel="noopener">YouTube Researcher Program</a> allows
     publishing derived metrics and freezing the data to finish an analysis (5.a, 7.c), but not passing the data on (7.a.i).
-    It presents itself around video metadata: check that it covers comments.</p>
+    Its pages speak of video metadata and never mention comments, while its terms cover any data read through the API (1.b)
+    and exclude no endpoint: nothing rules comments out, nothing confirms them, so name comments in your application and keep
+    YouTube's answer. Whatever it does not grant stays under the policies above (2).</p>
   <p><b>For a transparent paper, share the method:</b> the code, the settings (<code>run_manifest.json</code>), the codebook
     and the list of videos, so that others can collect again. The terms do not address lists of videos.</p>
   <p>This is a reading of YouTube's terms, not legal advice. Ask your data protection officer, and
@@ -590,7 +612,9 @@ function setForm(d) {
   langChips("#f-langs", state.candidates.filter((l) => COMMON_LANGS.includes(l)), p.languages);
   langChips("#f-langs-more", state.candidates.filter((l) => !COMMON_LANGS.includes(l)), p.languages);
   $("#f-morelangs").open = p.languages.some((l) => !COMMON_LANGS.includes(l));
+  customChosen = false;
   syncPreset(); noteLangs(); checkTargets();
+  $("#f-adv").open = document.querySelector("input[name=f-preset]:checked").value === "custom";
 }
 function fillForm(d) {
   $("#f-name").value = autoName();
@@ -607,18 +631,41 @@ function noteLangs() {
     " Other comments stay in the database with their reason; exports can include or drop them.";
 }
 
+// What is set differently under More options: folded, it would still apply without showing.
+function otherSettings() {
+  const c = state.defaults.collect, p = state.defaults.process, out = [];
+  const since = $("#f-since").value, until = $("#f-until").value;
+  if (since) out.push(`from ${since}`);
+  if (until) out.push(`until ${until}`);
+  const n = (id) => Number($(id).value);
+  if (n("#f-maxvid") !== c.max_videos_per_target) out.push(`${fmt(n("#f-maxvid"))} videos per channel, playlist or search`);
+  if (n("#f-conf") !== p.min_confidence) out.push(`language confidence ${n("#f-conf")}`);
+  const box = (id, was, on, off) => { if ($(id).checked !== was) out.push($(id).checked ? on : off); };
+  box("#f-emoji", p.remove_emoji, "emoji removed", "emoji kept");
+  box("#f-punct", p.remove_punct, "punctuation removed", "punctuation kept");
+  box("#f-mentions", p.redact_mentions, "@handles replaced", "@handles kept");
+  box("#f-ids", state.defaults.privacy.keep_identifiers, "raw user IDs kept", "authors pseudonymous");
+  if (n("#f-workers") !== c.workers) out.push(`${n("#f-workers")} parallel videos`);
+  if (n("#f-daily") !== state.defaults.daily_units) out.push(`daily quota ${fmt(n("#f-daily"))}`);
+  return out.length ? ` Also set under More options: ${out.join(", ")}.` : "";
+}
+
+let customChosen = false;  // Custom was clicked: it stays, even on amounts that match a preset.
+
 // Which preset the amounts match, and that in a sentence.
 function syncPreset() {
   const now = {max_items: Number($("#f-max").value), order: $("#f-order").value, replies: $("#f-replies").checked, max_replies: Number($("#f-maxrep").value)};
   const same = (p) => Object.entries(PRESETS[p]).every(([k, v]) => now[k] === v);
-  const name = same("quick") ? "quick" : same("all") ? "all" : "custom";
+  const name = customChosen ? "custom" : same("quick") ? "quick" : same("all") ? "all" : "custom";
   document.querySelector(`input[name=f-preset][value=${name}]`).checked = true;
   const comments = now.max_items ? `up to ${fmt(now.max_items)} comments per video` : "every comment of each video";
   const replies = !now.replies || !now.max_replies ? "no replies" : `up to ${fmt(now.max_replies)} replies per comment`;
-  $("#f-summary").textContent = `Collects ${comments}, with ${replies}, ${{relevance: "by relevance", time: "newest first", oldest: "oldest first"}[now.order]}.`;
+  $("#f-summary").textContent = `Collects ${comments}, with ${replies}, ${{relevance: "by relevance", time: "newest first", oldest: "oldest first"}[now.order]}.${otherSettings()}`;
 }
 document.querySelectorAll("input[name=f-preset]").forEach((r) => r.onchange = () => {
-  if (r.value === "custom") { $("#f-adv").open = true; syncPreset(); return; }
+  customChosen = r.value === "custom";
+  $("#f-adv").open = customChosen;
+  if (customChosen) { syncPreset(); return; }
   const p = PRESETS[r.value];
   $("#f-max").value = p.max_items; $("#f-order").value = p.order; $("#f-replies").checked = p.replies; $("#f-maxrep").value = p.max_replies;
   formChanged();
@@ -961,9 +1008,22 @@ let exploreOffset = 0;
 const firstPage = () => { exploreOffset = 0; loadExplore(); };
 ["#x-kept", "#x-container", "#x-reason", "#x-sort"].forEach((s) => $(s).onchange = firstPage);
 $("#x-search").oninput = () => { clearTimeout(exploreTimer); exploreTimer = setTimeout(firstPage, 300); };
-$("#x-prev").onclick = () => { exploreOffset = Math.max(0, exploreOffset - exploreShown.page); loadExplore(); };
-$("#x-next").onclick = () => { exploreOffset += exploreShown.page; loadExplore(); };
-let exploreShown = {page: 200, total: 0};
+// Another page opens at its first comment, in the list's own box or, on a phone, in the page.
+const turnPage = async (offset) => {
+  exploreOffset = offset;
+  await loadExplore();
+  $("#x-sample").scrollTop = 0;
+  if ($("#x-pos").getBoundingClientRect().top < $(".jump").getBoundingClientRect().bottom) $("#x-pos").scrollIntoView();
+};
+const prevPage = () => turnPage(Math.max(0, exploreOffset - exploreShown.page));
+const nextPage = () => turnPage(exploreOffset + exploreShown.page);
+$("#x-prev").onclick = $("#x-prev-end").onclick = prevPage;
+$("#x-next").onclick = $("#x-next-end").onclick = nextPage;
+let exploreShown = {page: 50, total: 0};
+document.querySelectorAll("[data-jump]").forEach((b) => { b.onclick = () => {
+  const to = document.getElementById(b.dataset.jump);
+  to.scrollIntoView(); to.focus({preventScroll: true});
+}; });
 
 async function loadExplore() {
   if (!current) return;
@@ -980,10 +1040,14 @@ async function loadExplore() {
   $("#x-top").innerHTML = d.top.length ? `<table>` + d.top.map((t) => `<tr><td class="num">${fmt(t.like_count)}</td><td class="txt">${esc((t.text || "").slice(0, 140))}</td></tr>`).join("") + "</table>" : '<p class="muted">No data yet.</p>';
   exploreShown = d;
   const shownTo = d.offset + d.sample.length;
-  $("#x-pager").classList.toggle("hidden", d.total <= d.page);
-  $("#x-prev").disabled = !d.offset; $("#x-prev").title = d.offset ? "" : "This is the first page.";
-  $("#x-next").disabled = shownTo >= d.total; $("#x-next").title = shownTo < d.total ? "" : "This is the last page.";
-  $("#x-sample").innerHTML = `<p class="hint">${d.total ? `${fmt(d.offset + 1)}–${fmt(shownTo)} of ${fmt(d.total)} matches` : "0 matches"}. Authors are pseudonymous.</p>` +
+  for (const end of ["", "-end"]) {
+    $("#x-pager" + end).classList.toggle("hidden", d.total <= d.page);
+    const prev = $("#x-prev" + end), next = $("#x-next" + end);
+    prev.disabled = !d.offset; prev.title = d.offset ? "" : "This is the first page.";
+    next.disabled = shownTo >= d.total; next.title = shownTo < d.total ? "" : "This is the last page.";
+  }
+  $("#x-pos").textContent = `${d.total ? `${fmt(d.offset + 1)}–${fmt(shownTo)} of ${fmt(d.total)} matches` : "0 matches"}. Authors are pseudonymous.`;
+  $("#x-sample").innerHTML =
     (d.sample.length ? `<table><tr><th>posted</th><th>video</th><th></th><th class="num">likes</th><th>lang</th><th>text</th></tr>` +
     d.sample.map((s) => `<tr><td>${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td><td>${esc(s.container_id)}</td>
       <td class="muted">${s.depth ? "↳ reply" : ""}</td><td class="num">${fmt(s.like_count)}</td>
@@ -1024,7 +1088,7 @@ function renderTimeline(rows) {
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Comments posted per ${weekly ? "week" : "day"}">`;
   svg += '<g class="grid">' + [0, .25, .5, .75, 1].map((f) => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(top * f)}" y2="${y(top * f)}"/>`).join("") + "</g>";
   svg += '<g class="axis">' + [0, .5, 1].map((f) => `<text x="${m.l - 6}" y="${y(top * f) + 4}" text-anchor="end">${fmt(Math.round(top * f))}</text>`).join("");
-  const ticks = Math.min(6, nb);
+  const ticks = Math.min(6, nb, Math.max(2, Math.floor((W - m.l - m.r) / 80)));   // a date takes about 70 px
   for (let k = 0; k < ticks; k++) {
     const i = Math.round(k * (nb - 1) / Math.max(1, ticks - 1));
     const anchor = ticks > 1 && k === 0 ? "start" : ticks > 1 && k === ticks - 1 ? "end" : "middle";

@@ -5,23 +5,20 @@
 
 [run]
 # Unique name of the run (letters, digits, '.', '_', '-').
-name = "trailers-2026-09"
+name = "example-run"
 # Only "youtube" for now.
 source = "youtube"
 # Daily quota of your Google Cloud project (10,000 for a standard key).
 daily_units = 10000
 # What to collect, one entry per string. Accepted forms:
-#   "VLGy63pt9vA"                                   a video ID
-#   "https://www.youtube.com/watch?v=VLGy63pt9vA"   any video URL (youtu.be, /shorts/, /live/, /embed/)
-#   "channel:@PlayStation" or a channel URL         the channel's latest uploads (1 unit per 50 videos)
+#   "kkmqgKAoB6s"                                   a video ID
+#   "https://www.youtube.com/watch?v=kkmqgKAoB6s"   any video URL (youtu.be, /shorts/, /live/, /embed/)
+#   "channel:@Owane" or a channel URL               the channel's latest uploads (1 unit per 50 videos)
 #   "playlist:PL..." or a playlist URL              the playlist's videos (1 unit per 50 videos)
-#   "search:star wars outlaws trailer"              100 searches a day at most; needs allow_search = true
+#   "search:jazz fusion live"                       100 searches a day at most; needs allow_search = true
 # Anything after " #" is a comment. Duplicates are ignored.
 targets = [
-  "VLGy63pt9vA  # Intergalactic: The Heretic Prophet - Announcement Trailer",
-  "W2Wnvvj33Wo  # The Last of Us Part II - PSX 2016 Reveal Trailer",
-  "UqCD5AX-hC4  # The Last of Us Part II - Story Trailer",
-  "ymcpwq1ltQc  # Star Wars Outlaws - world premiere trailer (FR)",
+  "kkmqgKAoB6s  # Jack & Owane - U.T.F.F. feat Henrik Linder",
 ]
 
 [collect]

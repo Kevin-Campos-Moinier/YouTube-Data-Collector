@@ -12,6 +12,13 @@ All notable changes to this project are listed here. The format follows
   themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
 - The cost estimate now says what a collection usually costs and what it costs at worst ("about 14, 98 at worst")
   instead of a range too wide to plan with. The usual cost comes from reply rates measured on 66 real videos.
+- The videos box grows in height only, up to a limit, shows its example in full and keeps the accepted forms in view
+  once something is typed. The examples no longer name a game or a brand.
+- *Custom* stays selected when clicked, *Quick sample* and *All comments* fold the details again, and the sentence under
+  them says what stays set in the folded details.
+- Explore shows 50 comments a page in a list of its own, with its position and pages above it, so that Export and Log stay
+  close however many comments a run holds; links on a run's page lead to them.
+- What the YouTube Researcher Program says about comments: nothing rules them out, nothing confirms them.
 
 ### Added
 

@@ -32,7 +32,7 @@ UI_TYPES = {".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2"
 # A page from another site can point its own domain at 127.0.0.1 (DNS rebinding) and then
 # read the API as same-origin; such requests carry that domain in Host, so they are refused.
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
-EXPLORE_PAGE = 200
+EXPLORE_PAGE = 50
 EXPLORE_ORDER = {"oldest": "created_at", "newest": "created_at DESC", "liked": "like_count DESC, created_at"}
 RESOLVED_FOR = 3600                    # seconds a check of the videos stays good for
 MAX_BODY = 1_000_000                   # every request this page sends fits well within this
