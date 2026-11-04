@@ -70,15 +70,16 @@ class Ctx:
 
 
 def print_plan(containers, est, budget: Budget) -> None:
-    print(f"\n{'video':<13} {'comments':>9} {'units':>9}  title")
+    print(f"\n{'video':<13} {'comments':>9} {'units':>22}  title")
     for c in containers:
-        lo, hi = est.per_container[c.container_id]
+        typical, hi = est.per_container[c.container_id]
         cc = "hidden" if c.comment_count is None else f"{c.comment_count:,}"
-        units = f"{lo}" if lo == hi else f"{lo}-{hi}"
+        units = f"{hi}" if typical == hi else f"about {typical}, {hi} at worst"
         note = "" if c.availability == "ok" else f"[{c.availability}] "
-        print(f"{c.container_id:<13} {cc:>9} {units:>9}  {note}{(c.title or '')[:60]}")
+        print(f"{c.container_id:<13} {cc:>9} {units:>22}  {note}{(c.title or '')[:60]}")
     b = budget.status()
-    print(f"\nestimated cost: {est.low}-{est.high} units; "
+    cost = f"{est.high}" if est.typical == est.high else f"about {est.typical}, {est.high} at worst,"
+    print(f"\nestimated cost: {cost} units; "
           f"remaining today: {b['remaining']:,}/{b['daily']:,} (resets {b['reset'][:16]} UTC)")
     hidden = sum(1 for c in containers if c.availability == "ok" and c.comment_count is None)
     if hidden:

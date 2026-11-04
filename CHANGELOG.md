@@ -10,6 +10,8 @@ All notable changes to this project are listed here. The format follows
 
 - New look for the dashboard: fonts and icons served locally (nothing loaded from outside), light, dark and system
   themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
+- The cost estimate now says what a collection usually costs and what it costs at worst ("about 14, 98 at worst")
+  instead of a range too wide to plan with. The usual cost comes from reply rates measured on 66 real videos.
 
 ### Added
 
@@ -47,6 +49,8 @@ All notable changes to this project are listed here. The format follows
 ### Fixed
 
 - A missing file on the command line gave `error: 2`; it now names the file.
+- A key refused because the API is not enabled or because of its restrictions was reported on each video as "forbidden",
+  as if the videos were unavailable. The run now stops on the video with a sentence that says what to change.
 - After a run that ended within a second or two, or under a click on *Pause*, the comments stayed empty until a reload.
 - The dashboard could keep showing a run as "running", with the wrong buttons, after it was paused or finished between
   two refreshes of the page.

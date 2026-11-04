@@ -21,12 +21,17 @@ from .base import BudgetExhausted, Unavailable
 
 API = "https://www.googleapis.com/youtube/v3/"
 INLINE_REPLIES = 5
+# Threads over 5 replies, measured on 66 varied videos (first 300 threads of each, Nov. 2026): the
+# best-ranked comments draw far more replies. A share, not a promise: one video can reach 66%.
+REPLY_SHARE, REPLY_SHARE_TOP, TOP_THREADS = 0.01, 0.13, 300
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 QUOTA_REASONS = {"quotaExceeded", "dailyLimitExceeded", "dailyLimitExceededUnreg"}
 RETRY_REASONS = frozenset({"rateLimitExceeded", "userRateLimitExceeded", "backendError"})
 UNAVAILABLE = {"commentsDisabled": "comments_disabled", "videoNotFound": "not_found",
                "forbidden": "forbidden", "processingFailure": "processing_failure",
                "channelNotFound": "not_found", "playlistNotFound": "not_found"}
+KEY_REASONS = {"API_KEY_INVALID", "SERVICE_DISABLED", "accessNotConfigured", "API_KEY_SERVICE_BLOCKED",
+               "API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED", "ipRefererBlocked"}
 COST = {"search": 100}
 PROBE_VIDEO = "dQw4w9WgXcQ"  # any public video: the answer does not matter, only that the key is accepted
 
@@ -95,12 +100,21 @@ def classify_target(raw: str) -> tuple[str | None, str | None]:
     return "invalid", None
 
 
+def _reasons(e: net.HttpError) -> set:
+    """The error's reason and those in its details, where Google says what is wrong with a key."""
+    err = e.body.get("error") if isinstance(e.body.get("error"), dict) else {}
+    return {e.reason, *(d.get("reason") for d in err.get("details") or [] if isinstance(d, dict))}
+
+
+def _key_problem(e: net.HttpError) -> bool:
+    return bool(_reasons(e) & KEY_REASONS)
+
+
 def explain_http_error(e: net.HttpError) -> str:
     """Says in words what a failed call means and what to do about it."""
     if e.status == 0:
         return "Could not reach YouTube: check your internet connection and try again."
-    err = e.body.get("error") if isinstance(e.body.get("error"), dict) else {}
-    reasons = {e.reason, *(d.get("reason") for d in err.get("details") or [] if isinstance(d, dict))}
+    reasons = _reasons(e)
     if "API_KEY_INVALID" in reasons:
         return "YouTube says this API key is not valid: check that you copied all of it, or create a new one."
     if reasons & {"SERVICE_DISABLED", "accessNotConfigured"}:
@@ -151,6 +165,8 @@ class YouTubeSource:
         except net.HttpError as e:
             if e.reason in QUOTA_REASONS:
                 raise BudgetExhausted(e.reason) from None
+            if _key_problem(e):  # says "forbidden" too: about the key, not about this video
+                raise
             if e.reason in UNAVAILABLE:
                 raise Unavailable(UNAVAILABLE[e.reason]) from None
             if e.status == 404:
@@ -243,9 +259,10 @@ class YouTubeSource:
 
         commentCount includes replies, so thread pages are an upper bound on a
         full crawl; the high end assumes the worst plausible share of threads
-        (one in six comments) overflowing the inline replies.
+        (one in six comments) overflowing the inline replies, and the typical
+        cost the measured share (see REPLY_SHARE).
         """
-        per, lo_sum, hi_sum = {}, 0, 0
+        per, lo_sum, typ_sum, hi_sum = {}, 0, 0, 0
         for c in containers:
             if c.availability != "ok":
                 per[c.container_id] = (0, 0)
@@ -253,18 +270,20 @@ class YouTubeSource:
             n = c.comment_count
             if n is None:  # hidden count: comments are most likely disabled
                 per[c.container_id] = (1, 1)
-                lo_sum, hi_sum = lo_sum + 1, hi_sum + 1
+                lo_sum, typ_sum, hi_sum = lo_sum + 1, typ_sum + 1, hi_sum + 1
                 continue
             full = params.order == "oldest" or not params.max_items
             wanted = n if full else min(n, params.max_items)
             lo = max(1, math.ceil(wanted / 100))
-            hi = lo
+            typ = hi = lo
             if params.replies and params.max_replies > INLINE_REPLIES and n:
                 sample = n if not params.max_items else min(n, params.max_items)
                 hi += min(sample, n // 6) * math.ceil(params.max_replies / 100)
-            per[c.container_id] = (lo, hi)
-            lo_sum, hi_sum = lo_sum + lo, hi_sum + hi
-        return Estimate(lo_sum, hi_sum, per)
+                top = min(sample, TOP_THREADS) if params.order == "relevance" else 0
+                typ = min(hi, lo + math.ceil(top * REPLY_SHARE_TOP + (sample - top) * REPLY_SHARE))
+            per[c.container_id] = (typ, hi)
+            lo_sum, typ_sum, hi_sum = lo_sum + lo, typ_sum + typ, hi_sum + hi
+        return Estimate(lo_sum, typ_sum, hi_sum, per)
 
     # -- comments --------------------------------------------------------------------
 

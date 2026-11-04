@@ -94,10 +94,12 @@ class Estimate:
 
     Attributes:
         low: Units certainly spent (comment pages).
+        typical: What such a collection usually costs, with its usual reply pages.
         high: Upper bound (adds reply pages that may be needed).
-        per_container: container_id -> (low, high).
+        per_container: container_id -> (typical, high).
     """
 
     low: int
+    typical: int
     high: int
     per_container: dict[str, tuple[int, int]]

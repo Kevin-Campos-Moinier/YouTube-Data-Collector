@@ -26,7 +26,7 @@ def test_cli_run_status_export_process(tmp_path, monkeypatch, capsys):
     (tmp_path / "run.toml").write_text(TOML)
     data = ["--data", str(tmp_path / "data")]
     assert cli.main(data + ["estimate", str(tmp_path / "run.toml")]) == 0
-    assert "estimated cost: 2-" in capsys.readouterr().out
+    assert "estimated cost: about" in capsys.readouterr().out
     assert cli.main(data + ["run", str(tmp_path / "run.toml")]) == 0
     assert (tmp_path / "data" / "runs" / "cli-demo.toml").exists()
     assert cli.main(data + ["run", str(tmp_path / "run.toml")]) == 2  # name already taken

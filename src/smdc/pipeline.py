@@ -13,12 +13,12 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from . import __version__, config, text
+from . import __version__, config, net, text
 from .budget import Budget
 from .config import Config
 from .model import Container, Item
 from .privacy import pseudonymize, scrub_authors
-from .sources import BudgetExhausted, Source, Unavailable
+from .sources import BudgetExhausted, Source, Unavailable, explain_error
 from .store import Store, now
 
 log = logging.getLogger(__name__)
@@ -217,6 +217,9 @@ class Job:
             self.say("warning", f"{cid}: skipped ({e.reason})")
         except BudgetExhausted:
             raise
+        except net.HttpError as e:
+            self.store.set_container(sid, cid, error=explain_error(e))
+            self.say("error", f"{cid}: {explain_error(e)}")
         except Exception as e:  # one bad container must not sink the run
             self.store.set_container(sid, cid, error=f"{type(e).__name__}: {e}")
             self.say("error", f"{cid}: {type(e).__name__}: {e}")

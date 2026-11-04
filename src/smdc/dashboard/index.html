@@ -658,19 +658,19 @@ $("#b-plan").onclick = async () => {
 function renderPlan(r) {
   const e = r.estimate, b = r.budget;
   const rows = r.containers.map((c) => {
-    const [lo, hi] = e.per_container[c.container_id];
+    const [typical, hi] = e.per_container[c.container_id];
     const flag = c.availability !== "ok" ? statusPill("unavailable", c.availability) + " not found or private"
       : c.comment_count == null ? statusPill("unavailable") + " comments probably disabled" : "";
     return `<tr><td><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a></td>
       <td class="txt">${esc(c.title || "")} ${flag}</td><td>${esc(c.author_name || "")}</td>
-      <td class="num">${fmt(c.comment_count)}</td><td class="num">${lo === hi ? lo : lo + "–" + hi}</td></tr>`;
+      <td class="num">${fmt(c.comment_count)}</td><td class="num">${typical === hi ? fmt(hi) : `about ${fmt(typical)} <span class="muted">· ${fmt(hi)} at worst</span>`}</td></tr>`;
   }).join("");
-  const over = e.low > b.remaining;
+  const over = e.typical > b.remaining;
   $("#plan-out").innerHTML = `
     <table style="margin-top:12px"><tr><th>video</th><th>title</th><th>channel</th>
       <th class="num">comments</th><th class="num">units</th></tr>${rows}</table>
-    <div class="ui-strip">${stat("Videos", r.containers.length)}${stat("Estimated cost (units)", fmt(e.low) + (e.high > e.low ? "–" + fmt(e.high) : ""))}${stat("Left today", fmt(b.remaining))}</div>
-    ${over ? '<p class="err">The low estimate exceeds today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
+    <div class="ui-strip">${stat("Videos", r.containers.length)}${stat("Estimated cost (units)", e.high > e.typical ? `about ${fmt(e.typical)}` : fmt(e.high), e.high > e.typical ? `${fmt(e.high)} at worst` : "")}${stat("Left today", fmt(b.remaining))}</div>
+    ${over ? '<p class="err">This will probably cost more than today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
     <div class="row"><button class="btn primary" id="b-start">Start collection</button>
       <label class="check"><input type="checkbox" id="f-wait" ${over ? "checked" : ""}> continue automatically after each quota reset (keep this page's server running)</label></div>`;
   $("#f-name-row").classList.remove("hidden");

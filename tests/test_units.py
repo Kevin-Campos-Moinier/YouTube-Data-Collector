@@ -8,7 +8,9 @@ import pytest
 
 from smdc import config, export, net, retention, sources, text
 from smdc.privacy import load_secret, pseudonymize, redact_mentions
-from smdc.sources.youtube import classify_target, explain_http_error, parse_video_id
+from smdc.model import Container
+from smdc.sources.base import Unavailable
+from smdc.sources.youtube import YouTubeSource, classify_target, explain_http_error, parse_video_id
 
 
 def test_non_latin_scripts_survive_emoji_removal():
@@ -188,14 +190,20 @@ def test_validate_targets_refuses_a_bad_line():
         sources.validate_targets(cfg)
 
 
-# A real answer from the API to a made-up key.
+# Real answers from the API, reduced to what the code reads: a made-up key, a key on an API its project has not
+# enabled, and a key restricted to another API.
 BAD_KEY = {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "API key not valid.",
                      "errors": [{"reason": "badRequest"}], "details": [{"reason": "API_KEY_INVALID"}]}}
+NOT_ENABLED = {"error": {"code": 403, "status": "PERMISSION_DENIED", "errors": [{"reason": "accessNotConfigured"}],
+                         "details": [{"reason": "SERVICE_DISABLED"}]}}
+BLOCKED = {"error": {"code": 403, "status": "PERMISSION_DENIED", "errors": [{"reason": "forbidden"}],
+                     "details": [{"reason": "API_KEY_SERVICE_BLOCKED"}]}}
 
 
 def test_errors_say_what_to_do():
     assert "not valid" in explain_http_error(net.HttpError(400, "badRequest", BAD_KEY))
-    assert "enable it" in explain_http_error(net.HttpError(403, "accessNotConfigured"))
+    assert "enable it" in explain_http_error(net.HttpError(403, "accessNotConfigured", NOT_ENABLED))
+    assert "restrictions" in explain_http_error(net.HttpError(403, "forbidden", BLOCKED))
     assert "restrictions" in explain_http_error(net.HttpError(403, "ipRefererBlocked"))
     assert "midnight" in explain_http_error(net.HttpError(403, "quotaExceeded"))
     assert "internet" in explain_http_error(net.HttpError(0, "URLError"))
@@ -227,3 +235,40 @@ def test_save_api_key_keeps_other_lines_and_is_private(tmp_path, monkeypatch):
 def test_delete_by_is_thirty_days_after_the_snapshot():
     assert retention.delete_by("2026-01-01T10:00:00Z") == "2026-01-31"
     assert retention.delete_by(None) is None
+
+
+class _Budget:
+    def charge(self, endpoint, units):
+        pass
+
+
+@pytest.mark.parametrize("body,word", [(NOT_ENABLED, "enable it"), (BLOCKED, "restrictions"), (BAD_KEY, "not valid")])
+def test_a_key_problem_is_not_taken_for_an_unavailable_video(body, word):
+    def refuse(*a, **k):
+        raise net.HttpError(body["error"]["code"], body["error"]["errors"][0]["reason"], body)
+    with pytest.raises(net.HttpError) as e:
+        YouTubeSource("KEY", _Budget(), get=refuse).resolve(["aaaaaaaaaaa"])
+    assert word in explain_http_error(e.value)
+
+
+def test_the_estimate_gives_the_usual_cost_and_the_worst_case():
+    def cost(count, **collect):
+        video = Container("youtube", "v", comment_count=count)
+        est = YouTubeSource("k", _Budget()).estimate([video], config.Collect(**collect))
+        return est.low, est.typical, est.high
+
+    # the two real runs this was checked on spent 2 and 293 units
+    assert cost(582, max_items=100, order="relevance", max_replies=10) == (1, 14, 98)
+    assert cost(2_461_300, max_items=20000, order="time", max_replies=100) == (200, 400, 20200)
+    # no reply page to pay for: all three agree
+    assert cost(582, max_items=100, replies=False) == (1, 1, 1)
+    assert cost(582, max_items=100, max_replies=5) == (1, 1, 1)
+    # the top of the ranking is what draws replies, not the whole video
+    assert cost(50000, max_items=0, order="relevance", max_replies=10)[1] == 500 + 39 + 497
+
+
+def test_a_video_that_really_is_forbidden_stays_unavailable():
+    def refuse(*a, **k):
+        raise net.HttpError(403, "forbidden", {"error": {"errors": [{"reason": "forbidden"}]}})
+    with pytest.raises(Unavailable):
+        YouTubeSource("KEY", _Budget(), get=refuse)._call("commentThreads", {})
