@@ -14,6 +14,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ORDERS = ("relevance", "time", "oldest")
+# search.list's own options (https://developers.google.com/youtube/v3/docs/search/list).
+SEARCH_ORDERS = ("relevance", "date", "viewCount", "rating", "title")
+SEARCH_DURATIONS = ("any", "short", "medium", "long")  # under 4 min, 4 to 20, over 20
+LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z]{2,4})?$")
+REGION_RE = re.compile(r"^[A-Z]{2}$")
 API_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{20,100}$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 # Languages lingua chooses among. A short list keeps short comments from being
@@ -36,6 +41,12 @@ class Collect:
     keep_raw: bool = True
     max_videos_per_target: int = 50
     allow_search: bool = False
+    search_order: str = "relevance"
+    search_language: str = ""
+    search_region: str = ""
+    search_after: str | None = None
+    search_before: str | None = None
+    search_duration: str = "any"
 
 
 @dataclass
@@ -117,11 +128,32 @@ def validate(cfg: Config) -> None:
     if not 1 <= c.workers <= 16:
         raise ValueError("workers must be between 1 and 16")
     c.since, c.until = normalize_time(c.since), normalize_time(c.until)
+    validate_search(c)
     if not 0 <= p.min_confidence <= 1:
         raise ValueError("min_confidence must be in [0, 1]")
     missing = set(p.languages) - set(p.candidates)
     if missing:
         raise ValueError(f"target language(s) {sorted(missing)} missing from candidates")
+
+
+def validate_search(c: Collect) -> None:
+    """Checks the options of search: lines, and writes the region in capitals as the API wants it.
+
+    Raises:
+        ValueError: On an option search.list would refuse or misread.
+    """
+    if c.search_order not in SEARCH_ORDERS:
+        raise ValueError(f"search_order must be one of {SEARCH_ORDERS}, got {c.search_order!r}")
+    if c.search_duration not in SEARCH_DURATIONS:
+        raise ValueError(f"search_duration must be one of {SEARCH_DURATIONS}, got {c.search_duration!r}")
+    c.search_language, c.search_region = c.search_language.strip(), c.search_region.strip().upper()
+    if c.search_language and not LANGUAGE_RE.match(c.search_language):
+        raise ValueError(f"search_language {c.search_language!r}: use a language code such as fr or en")
+    if c.search_region and not REGION_RE.match(c.search_region):
+        raise ValueError(f"search_region {c.search_region!r}: use a two-letter country code such as FR or US")
+    c.search_after, c.search_before = normalize_time(c.search_after), normalize_time(c.search_before)
+    if c.search_after and c.search_before and c.search_after >= c.search_before:
+        raise ValueError("search_after must come before search_before")
 
 
 def normalize_time(value: str | None) -> str | None:

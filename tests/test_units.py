@@ -13,7 +13,8 @@ from smdc.budget import Budget
 from smdc.model import Container
 from smdc.sources.base import Unavailable
 from smdc.store import Store
-from smdc.sources.youtube import YouTubeSource, classify_target, explain_http_error, parse_video_id
+from smdc.sources.youtube import (YouTubeSource, classify_target, explain_http_error, iso_seconds, parse_video_id,
+                                  search_params)
 
 
 def test_non_latin_scripts_survive_emoji_removal():
@@ -316,3 +317,30 @@ def test_a_video_that_really_is_forbidden_stays_unavailable():
         raise net.HttpError(403, "forbidden", {"error": {"errors": [{"reason": "forbidden"}]}})
     with pytest.raises(Unavailable):
         YouTubeSource("KEY", _Budget(), get=refuse)._call("commentThreads", {})
+
+
+def test_search_options_are_checked_and_tidied():
+    cfg = config.from_dict({"name": "x", "targets": ["search:a"], "collect": {
+        "search_language": " fr ", "search_region": "fr", "search_after": "2022-01-01", "search_before": "2025-01-01"}})
+    c = cfg.collect
+    assert (c.search_language, c.search_region, c.search_after) == ("fr", "FR", "2022-01-01T00:00:00Z")
+    for bad, match in [({"search_order": "views"}, "search_order"), ({"search_duration": "2h"}, "search_duration"),
+                       ({"search_language": "French"}, "language code"), ({"search_region": "FRA"}, "two-letter"),
+                       ({"search_after": "2025-01-01", "search_before": "2024-01-01"}, "before")]:
+        with pytest.raises(ValueError, match=match):
+            config.from_dict({"name": "x", "targets": ["search:a"], "collect": bad})
+
+
+def test_search_params_leave_unset_options_to_youtube():
+    assert search_params("cats", config.Collect()) == {"part": "id", "q": "cats", "type": "video", "maxResults": 50,
+                                                       "order": "relevance"}
+    c = config.Collect(search_order="viewCount", search_language="fr", search_region="FR",
+                       search_after="2022-01-01T00:00:00Z", search_before="2025-01-01T00:00:00Z", search_duration="medium")
+    p = search_params("cats", c)
+    assert (p["order"], p["relevanceLanguage"], p["regionCode"], p["videoDuration"]) == ("viewCount", "fr", "FR", "medium")
+    assert (p["publishedAfter"], p["publishedBefore"]) == ("2022-01-01T00:00:00Z", "2025-01-01T00:00:00Z")
+
+
+def test_iso_durations():
+    assert [iso_seconds(d) for d in ("PT12M5S", "PT1H", "PT45S", "P1DT2H3M", "P0D", "PT", "", None, "junk")] == \
+        [725, 3600, 45, 93780, 0, None, None, None, None]

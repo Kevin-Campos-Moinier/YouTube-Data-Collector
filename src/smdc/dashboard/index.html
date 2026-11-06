@@ -184,6 +184,34 @@ channel:@Owane"></textarea>
     <p class="hint" id="f-targets-forms">One per line: a video URL or ID, <code>channel:@name</code> (its latest uploads), <code>playlist:ID</code>, or <code>search:words</code> (100 searches a day). Anything after “ #” is a note for you.</p>
     <div class="hint" id="f-targets-hint" aria-live="polite"></div>
     <label class="check hidden" id="f-search-row"><input type="checkbox" id="f-search"> allow search lines (YouTube allows 100 searches a day)</label>
+    <fieldset class="hidden" id="f-search-opts" style="border:0;padding:0;margin:10px 0 0">
+      <legend><h3 style="margin:0">Search options</h3></legend>
+      <div class="grid" style="margin-top:6px">
+        <div><label for="f-s-order">Order of the results</label>
+          <select id="f-s-order" aria-describedby="f-s-order-hint">
+            <option value="relevance">Relevance (YouTube's default)</option>
+            <option value="date">Newest first</option>
+            <option value="viewCount">Most viewed first</option>
+            <option value="rating">Best rated first</option>
+            <option value="title">Title, A to Z</option>
+          </select>
+          <div class="hint" id="f-s-order-hint">“Most viewed” ranks every video that matches a word, in any language: expect viral videos off the subject.</div></div>
+        <div><label for="f-s-lang">Language of the videos</label><select id="f-s-lang" aria-describedby="f-s-lang-hint"></select>
+          <div class="hint" id="f-s-lang-hint">A language code. YouTube favours it, it does not filter on it.</div></div>
+        <div><label for="f-s-region">Country</label><select id="f-s-region" aria-describedby="f-s-region-hint"></select>
+          <div class="hint" id="f-s-region-hint">Two letters: results as YouTube shows them in that country.</div></div>
+        <div><label for="f-s-length">Length</label>
+          <select id="f-s-length">
+            <option value="any">Any</option>
+            <option value="short">Under 4 minutes (Shorts among them)</option>
+            <option value="medium">4 to 20 minutes</option>
+            <option value="long">Over 20 minutes</option>
+          </select></div>
+        <div><label for="f-s-after">Videos published from</label><input type="date" id="f-s-after"></div>
+        <div><label for="f-s-before">…until (exclusive)</label><input type="date" id="f-s-before"></div>
+      </div>
+      <p class="hint">The same search can give different videos from one day, or one hour, to the next: after the check, download the list to keep a record of what it found.</p>
+    </fieldset>
   </div>
 
   <div class="card">
@@ -581,6 +609,7 @@ function checkTargets() {
       .filter(([k]) => count(k)).map(([k, l]) => `${count(k)} ${l}${count(k) > 1 ? (l === "search" ? "es" : "s") : ""}`);
     const bad = rows.find((r) => r.error);
     $("#f-search-row").classList.toggle("hidden", !count("search") && !$("#f-search").checked);
+    $("#f-search-opts").classList.toggle("hidden", !count("search"));
     $("#f-targets-hint").innerHTML = (parts.length ? esc(parts.join(", ")) : "") +
       (bad ? `${parts.length ? " · " : ""}<span class="err">Line ${bad.line}: ${esc(bad.error)}</span>` : "");
   }, 250);
@@ -617,11 +646,16 @@ function nameFromTitle(title) {
 
 // Puts a run's configuration, or the defaults, into the form.
 function setForm(d) {
-  const c = d.collect, p = d.process;
+  // a draft or a run saved by an older version lacks the newer settings: they take their defaults, never "undefined"
+  const df = state.defaults, c = {...df.collect, ...d.collect}, p = {...df.process, ...d.process};
+  d = {...d, privacy: {...df.privacy, ...d.privacy}, daily_units: d.daily_units ?? df.daily_units};
   $("#f-order").value = c.order; $("#f-max").value = c.max_items; $("#f-maxrep").value = c.max_replies;
   $("#f-replies").checked = c.replies; $("#f-maxvid").value = c.max_videos_per_target;
   $("#f-since").value = (c.since || "").slice(0, 10); $("#f-until").value = (c.until || "").slice(0, 10);
   $("#f-search").checked = c.allow_search; $("#f-conf").value = p.min_confidence;
+  $("#f-s-order").value = c.search_order; pick("#f-s-lang", c.search_language); pick("#f-s-region", c.search_region);
+  $("#f-s-length").value = c.search_duration;
+  $("#f-s-after").value = (c.search_after || "").slice(0, 10); $("#f-s-before").value = (c.search_before || "").slice(0, 10);
   $("#f-emoji").checked = p.remove_emoji; $("#f-punct").checked = p.remove_punct;
   $("#f-mentions").checked = p.redact_mentions; $("#f-ids").checked = d.privacy.keep_identifiers;
   $("#f-workers").value = c.workers; $("#f-daily").value = d.daily_units;
@@ -632,6 +666,55 @@ function setForm(d) {
   customChosen = false;
   syncPreset(); noteLangs(); checkTargets();
   $("#f-adv").open = document.querySelector("input[name=f-preset]:checked").value === "custom";
+}
+// The languages and countries YouTube's search knows (i18nLanguages, base codes only, and i18nRegions, Nov. 2026);
+// Chinese is zh-Hans or zh-Hant, as search.list asks.
+const SEARCH_LANGUAGES = [
+  ["af", "Afrikaans"], ["sq", "Albanian"], ["am", "Amharic"], ["ar", "Arabic"], ["hy", "Armenian"],
+  ["as", "Assamese"], ["az", "Azerbaijani"], ["bn", "Bangla"], ["eu", "Basque"], ["be", "Belarusian"],
+  ["bs", "Bosnian"], ["bg", "Bulgarian"], ["my", "Burmese"], ["ca", "Catalan"], ["zh-Hans", "Chinese (Simplified)"],
+  ["zh-Hant", "Chinese (Traditional)"], ["hr", "Croatian"], ["cs", "Czech"], ["da", "Danish"], ["nl", "Dutch"],
+  ["en", "English"], ["et", "Estonian"], ["fil", "Filipino"], ["fi", "Finnish"], ["fr", "French"],
+  ["gl", "Galician"], ["ka", "Georgian"], ["de", "German"], ["el", "Greek"], ["gu", "Gujarati"], ["iw", "Hebrew"],
+  ["hi", "Hindi"], ["hu", "Hungarian"], ["is", "Icelandic"], ["id", "Indonesian"], ["it", "Italian"],
+  ["ja", "Japanese"], ["kn", "Kannada"], ["kk", "Kazakh"], ["km", "Khmer"], ["ko", "Korean"], ["ky", "Kyrgyz"],
+  ["lo", "Lao"], ["lv", "Latvian"], ["lt", "Lithuanian"], ["mk", "Macedonian"], ["ms", "Malay"], ["ml", "Malayalam"],
+  ["mr", "Marathi"], ["mn", "Mongolian"], ["ne", "Nepali"], ["no", "Norwegian"], ["or", "Odia"], ["fa", "Persian"],
+  ["pl", "Polish"], ["pt", "Portuguese"], ["pa", "Punjabi"], ["ro", "Romanian"], ["ru", "Russian"],
+  ["sr", "Serbian"], ["si", "Sinhala"], ["sk", "Slovak"], ["sl", "Slovenian"], ["es", "Spanish"], ["sw", "Swahili"],
+  ["sv", "Swedish"], ["ta", "Tamil"], ["te", "Telugu"], ["th", "Thai"], ["tr", "Turkish"], ["uk", "Ukrainian"],
+  ["ur", "Urdu"], ["uz", "Uzbek"], ["vi", "Vietnamese"], ["zu", "Zulu"]];
+const SEARCH_REGIONS = [
+  ["DZ", "Algeria"], ["AR", "Argentina"], ["AM", "Armenia"], ["AU", "Australia"], ["AT", "Austria"],
+  ["AZ", "Azerbaijan"], ["BH", "Bahrain"], ["BD", "Bangladesh"], ["BY", "Belarus"], ["BE", "Belgium"],
+  ["BO", "Bolivia"], ["BA", "Bosnia and Herzegovina"], ["BR", "Brazil"], ["BG", "Bulgaria"], ["KH", "Cambodia"],
+  ["CA", "Canada"], ["CL", "Chile"], ["CO", "Colombia"], ["CR", "Costa Rica"], ["HR", "Croatia"], ["CY", "Cyprus"],
+  ["CZ", "Czechia"], ["DK", "Denmark"], ["DO", "Dominican Republic"], ["EC", "Ecuador"], ["EG", "Egypt"],
+  ["SV", "El Salvador"], ["EE", "Estonia"], ["FI", "Finland"], ["FR", "France"], ["GE", "Georgia"],
+  ["DE", "Germany"], ["GH", "Ghana"], ["GR", "Greece"], ["GT", "Guatemala"], ["HN", "Honduras"], ["HK", "Hong Kong"],
+  ["HU", "Hungary"], ["IS", "Iceland"], ["IN", "India"], ["ID", "Indonesia"], ["IQ", "Iraq"], ["IE", "Ireland"],
+  ["IL", "Israel"], ["IT", "Italy"], ["JM", "Jamaica"], ["JP", "Japan"], ["JO", "Jordan"], ["KZ", "Kazakhstan"],
+  ["KE", "Kenya"], ["KW", "Kuwait"], ["LA", "Laos"], ["LV", "Latvia"], ["LB", "Lebanon"], ["LY", "Libya"],
+  ["LI", "Liechtenstein"], ["LT", "Lithuania"], ["LU", "Luxembourg"], ["MY", "Malaysia"], ["MT", "Malta"],
+  ["MX", "Mexico"], ["MD", "Moldova"], ["ME", "Montenegro"], ["MA", "Morocco"], ["NP", "Nepal"],
+  ["NL", "Netherlands"], ["NZ", "New Zealand"], ["NI", "Nicaragua"], ["NG", "Nigeria"], ["MK", "North Macedonia"],
+  ["NO", "Norway"], ["OM", "Oman"], ["PK", "Pakistan"], ["PA", "Panama"], ["PG", "Papua New Guinea"],
+  ["PY", "Paraguay"], ["PE", "Peru"], ["PH", "Philippines"], ["PL", "Poland"], ["PT", "Portugal"],
+  ["PR", "Puerto Rico"], ["QA", "Qatar"], ["RO", "Romania"], ["RU", "Russia"], ["SA", "Saudi Arabia"],
+  ["SN", "Senegal"], ["RS", "Serbia"], ["SG", "Singapore"], ["SK", "Slovakia"], ["SI", "Slovenia"],
+  ["ZA", "South Africa"], ["KR", "South Korea"], ["ES", "Spain"], ["LK", "Sri Lanka"], ["SE", "Sweden"],
+  ["CH", "Switzerland"], ["TW", "Taiwan"], ["TZ", "Tanzania"], ["TH", "Thailand"], ["TN", "Tunisia"],
+  ["TR", "Turkey"], ["UG", "Uganda"], ["UA", "Ukraine"], ["AE", "United Arab Emirates"], ["GB", "United Kingdom"],
+  ["US", "United States"], ["UY", "Uruguay"], ["VE", "Venezuela"], ["VN", "Vietnam"], ["YE", "Yemen"],
+  ["ZW", "Zimbabwe"]];
+for (const [sel, list] of [["#f-s-lang", SEARCH_LANGUAGES], ["#f-s-region", SEARCH_REGIONS]])
+  $(sel).innerHTML = '<option value="">Any</option>' +
+    list.map(([code, name]) => `<option value="${esc(code)}">${esc(name)} (${esc(code)})</option>`).join("");
+// Selects a code in a list; one from a run file that the list lacks is added, so that it shows and is kept.
+function pick(sel, code) {
+  const box = $(sel);
+  if (code && ![...box.options].some((o) => o.value === code)) box.add(new Option(code, code));
+  box.value = code || "";
 }
 function fillForm(d) {
   $("#f-name").value = autoName();
@@ -697,7 +780,9 @@ function formConfig() {
     collect: {max_items: num("#f-max"), order: $("#f-order").value, replies: $("#f-replies").checked,
       max_replies: num("#f-maxrep"), since: date("#f-since"), until: date("#f-until"),
       workers: num("#f-workers"), keep_raw: true, max_videos_per_target: num("#f-maxvid"),
-      allow_search: $("#f-search").checked},
+      allow_search: $("#f-search").checked, search_order: $("#f-s-order").value,
+      search_language: $("#f-s-lang").value, search_region: $("#f-s-region").value,
+      search_after: date("#f-s-after"), search_before: date("#f-s-before"), search_duration: $("#f-s-length").value},
     process: {...state.defaults.process, languages: formLangs(),
       min_confidence: num("#f-conf"), remove_emoji: $("#f-emoji").checked,
       remove_punct: $("#f-punct").checked, redact_mentions: $("#f-mentions").checked},
@@ -705,7 +790,8 @@ function formConfig() {
   };
 }
 // The videos the estimate was made on: they cost quota to check, the other settings do not.
-const planKey = (c) => JSON.stringify([c.targets, c.collect.max_videos_per_target, c.collect.allow_search]);
+const SEARCH_KEYS = ["search_order", "search_language", "search_region", "search_after", "search_before", "search_duration"];
+const planKey = (c) => JSON.stringify([c.targets, c.collect.max_videos_per_target, c.collect.allow_search, SEARCH_KEYS.map((k) => c.collect[k])]);
 let replanTimer = null;
 
 // Any change in the form: the draft is saved, and the cost follows if the videos are still the same.
@@ -748,22 +834,32 @@ $("#b-plan").onclick = async () => {
 
 function renderPlan(r) {
   const e = r.estimate, b = r.budget;
-  const rows = r.containers.map((c) => {
-    const [typical, hi] = e.per_container[c.container_id];
-    const flag = c.availability !== "ok" ? statusPill("unavailable", c.availability) + " not found or private"
-      : c.comment_count == null ? statusPill("unavailable") + " comments probably disabled" : "";
-    return `<tr><td><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a></td>
-      <td class="txt">${esc(c.title || "")} ${flag}</td><td>${esc(c.author_name || "")}</td>
-      <td class="num">${fmt(c.comment_count)}</td><td class="num">${typical === hi ? fmt(hi) : `about ${fmt(typical)} <span class="muted">· ${fmt(hi)} at worst</span>`}</td></tr>`;
-  }).join("");
   const over = e.typical > b.remaining;
   $("#plan-out").innerHTML = `
-    <table style="margin-top:12px"><tr><th>video</th><th>title</th><th>channel</th>
-      <th class="num">comments</th><th class="num">units</th></tr>${rows}</table>
+    <div id="plan-videos" class="v-list" tabindex="0" role="region" aria-label="The videos checked" style="margin-top:12px"></div>
+    <button type="button" class="btn v-all hidden" id="plan-videos-all" data-box="plan-videos"></button>
+    <p class="hint">Download this list: <a href="/download/check" download>CSV</a> · <a href="/download/check?excel=1" download>CSV for Excel</a>. It also has each video's date, length and likes, and the line that found it with its rank there. Nothing is spent to download it.</p>
     <div class="ui-strip">${stat("Videos", r.containers.length)}${stat("Estimated cost (units)", e.high > e.typical ? `about ${fmt(e.typical)}` : fmt(e.high), e.high > e.typical ? `${fmt(e.high)} at worst` : "")}${stat("Left today", fmt(b.remaining))}</div>
     ${over ? '<p class="err">This will probably cost more than today\'s remaining quota: the run will pause when the quota runs out and can be resumed after the reset.</p>' : ""}
     <div class="row"><button class="btn primary" id="b-start">Start collection</button>
       <label class="check"><input type="checkbox" id="f-wait" ${over ? "checked" : ""}> continue automatically after each quota reset (keep this page's server running)</label></div>`;
+  videoList("#plan-videos", "#plan-videos-all", [
+    {key: "video", label: "video", first: 1}, {key: "title", label: "title", first: 1}, {key: "channel", label: "channel", first: 1},
+    {key: "views", label: "views", first: -1, num: true}, {key: "comments", label: "comments", first: -1, num: true},
+    {key: "units", label: "units", first: -1, num: true},
+  ], r.containers.map((c) => {
+    const [typical, hi] = e.per_container[c.container_id], st = c.stats || {};
+    const flag = c.availability !== "ok" ? statusPill("unavailable", c.availability) + " not found or private"
+      : c.comment_count == null ? statusPill("unavailable") + " comments probably disabled" : "";
+    return {sort: {video: c.container_id, title: c.title || "", channel: c.author_name || "", views: st.viewCount ?? null,
+        comments: c.comment_count, units: typical},
+      html: `<tr><td><a href="https://www.youtube.com/watch?v=${esc(c.container_id)}" target="_blank" rel="noopener">${esc(c.container_id)}</a></td>
+      <td class="txt">${esc(c.title || "")} ${flag}</td>
+      <td>${esc(c.author_name || "")}</td><td class="num">${fmt(st.viewCount)}</td>
+      <td class="num">${fmt(c.comment_count)}</td><td class="num">${typical === hi ? fmt(hi) : `about ${fmt(typical)} <span class="muted">· ${fmt(hi)} at worst</span>`}</td></tr>`};
+  }));
+  sortable("#plan-videos");
+  $("#plan-videos-all").onclick = showAllVideos;
   $("#f-name-row").classList.remove("hidden");
   $("#b-start").onclick = startRun;
 }
@@ -1215,21 +1311,26 @@ function drawVideos(box) {
   if (focused) $(box).querySelector(`[data-sort="${focused}"]`)?.focus();
 }
 // A title sorts its column: first the most useful way, then the other, then back to the run's own order.
-for (const box of ["#d-progress", "#d-cov-videos"]) $(box).addEventListener("click", (ev) => {
-  const b = ev.target.closest("[data-sort]");
-  if (!b) return;
-  const col = videoLists[box].columns.find((c) => c.key === b.dataset.sort), now = videoSort[box];
-  if (now?.key !== col.key) videoSort[box] = {key: col.key, dir: col.first};
-  else if (now.dir === col.first) now.dir = -col.first;
-  else delete videoSort[box];
-  b.focus();
-  drawVideos(box);
-  $(box).scrollTop = 0;
-});
-document.querySelectorAll(".v-all").forEach((b) => { b.onclick = () => {
-  const box = document.getElementById(b.dataset.box);
+function sortable(box) {
+  $(box).addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-sort]");
+    if (!b) return;
+    const col = videoLists[box].columns.find((c) => c.key === b.dataset.sort), now = videoSort[box];
+    if (now?.key !== col.key) videoSort[box] = {key: col.key, dir: col.first};
+    else if (now.dir === col.first) now.dir = -col.first;
+    else delete videoSort[box];
+    b.focus();
+    drawVideos(box);
+    $(box).scrollTop = 0;
+  });
+}
+["#d-progress", "#d-cov-videos"].forEach(sortable);
+function showAllVideos(ev) {
+  const b = ev.currentTarget, box = document.getElementById(b.dataset.box);
   box.classList.add("all"); b.classList.add("hidden"); box.focus();
-}; });
+}
+document.querySelectorAll(".v-all").forEach((b) => { b.onclick = showAllVideos; });
+
 
 function renderCoverage(cov) {
   const t = cov.total, parts = coverageParts(cov);

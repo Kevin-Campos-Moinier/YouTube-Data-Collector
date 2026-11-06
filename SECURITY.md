@@ -26,3 +26,6 @@ Never include an API key, a `.env` file, a database or collected comments in a r
   pseudonymized with a keyed hash whose secret stays in that folder; raw API responses are
   stored without commenter identifiers unless `keep_identifiers = true`.
 - **Exports**: `--excel` CSVs neutralize cells that Excel would run as formulas.
+- **List of checked videos**: downloaded from memory (nothing is written to disk), from the dashboard's own
+  address only. It holds public video metadata, no comment and no commenter; its Excel version neutralizes
+  formulas like the exports. Search options are checked against fixed lists and formats before they reach YouTube.

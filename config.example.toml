@@ -47,6 +47,19 @@ max_videos_per_target = 50
 # search: targets are limited to 100 calls a day (50 results each), and YouTube search results
 # are unstable (Rieder et al., 2025): off unless you need it.
 allow_search = false
+# Options of search: lines, passed to YouTube as they are. Leave one empty for YouTube's default.
+# Order: relevance (default), date, viewCount, rating or title. viewCount ranks every video that matches
+# a word, in any language: expect viral videos off the subject.
+search_order = "relevance"
+# Language the results should favour (ISO 639-1, e.g. "en"); YouTube favours it, it does not filter on it.
+search_language = ""
+# Results as YouTube shows them in this country (ISO 3166-1 alpha-2, e.g. "US").
+search_region = ""
+# Videos published from / before these dates (UTC).
+# search_after = "2022-01-01"
+# search_before = "2025-01-01"
+# Length: any, short (under 4 min, Shorts among them), medium (4 to 20 min) or long (over 20 min).
+search_duration = "any"
 
 [process]
 # Keep comments in these languages (ISO 639-1). An empty list keeps every language.

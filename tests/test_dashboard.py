@@ -1,5 +1,6 @@
 """Dashboard API end to end, with the in-memory YouTube."""
 
+import csv
 import io
 import json
 import threading
@@ -394,6 +395,49 @@ def test_exports_are_listed_and_downloaded_and_nothing_else(http, api, tmp_path)
             urllib.request.urlopen(url)
         assert e.value.code == 404, bad
     req = urllib.request.Request(f"{http}/download/export?name=demo&folder=demo", headers={"Host": "evil.example:1"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req)
+    assert e.value.code == 403
+
+
+def test_plan_says_where_each_video_comes_from_and_its_figures(api):
+    cfg = {**CFG, "targets": ["bbbbbbbbbbb", "search:anything"], "collect": {**CFG["collect"], "allow_search": True}}
+    rows = {c["container_id"]: c for c in api.post_plan({"config": cfg})["containers"]}
+    assert (rows["bbbbbbbbbbb"]["target"], rows["bbbbbbbbbbb"]["rank"], rows["bbbbbbbbbbb"]["kind"]) == ("bbbbbbbbbbb", 1, "video")
+    assert (rows["aaaaaaaaaaa"]["target"], rows["aaaaaaaaaaa"]["rank"], rows["aaaaaaaaaaa"]["kind"]) == ("search:anything", 1, "search")
+    assert rows["aaaaaaaaaaa"]["stats"] == {"viewCount": 1000, "durationSeconds": 725}
+
+
+def test_search_options_need_a_new_check_other_settings_do_not(api):
+    cfg = {**CFG, "targets": ["search:anything"], "collect": {**CFG["collect"], "allow_search": True}}
+    assert api.post_plan({"config": cfg})["checked"] is True
+    assert api.post_plan({"config": {**cfg, "collect": {**cfg["collect"], "max_items": 0}}})["checked"] is False
+    again = {**cfg, "collect": {**cfg["collect"], "search_language": "fr"}}
+    assert api.post_plan({"config": again})["checked"] is True
+    assert api.ctx.fake.calls[-2][1]["relevanceLanguage"] == "fr"
+
+
+def test_the_check_downloads_as_csv(http, api):
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(f"{http}/download/check")
+    assert e.value.code == 404
+    api.ctx.fake.videos["aaaaaaaaaaa"]["title"] = "=HYPERLINK(1)"
+    cfg = {**CFG, "targets": ["bbbbbbbbbbb", "search:anything"],
+           "collect": {**CFG["collect"], "allow_search": True, "search_region": "fr", "search_after": "2022-01-01"}}
+    api.post_plan({"config": cfg})
+    r = urllib.request.urlopen(f"{http}/download/check")
+    assert r.headers["Content-Type"].startswith("text/csv") and "attachment" in r.headers["Content-Disposition"]
+    rows = list(csv.DictReader(io.StringIO(r.read().decode())))
+    assert list(rows[0]) == list(server.CHECK_COLUMNS)
+    by = {x["video_id"]: x for x in rows}
+    assert by["bbbbbbbbbbb"]["search_options"] == "" and by["bbbbbbbbbbb"]["rank"] == "1"
+    a = by["aaaaaaaaaaa"]
+    assert (a["target"], a["rank"], a["views"], a["duration_seconds"], a["title"]) == \
+        ("search:anything", "1", "1000", "725", "=HYPERLINK(1)")
+    assert a["search_options"] == "order=relevance; region=FR; after=2022-01-01T00:00:00Z; duration=any"
+    excel = urllib.request.urlopen(f"{http}/download/check?excel=1").read()
+    assert excel.startswith(b"\xef\xbb\xbf") and b";'=HYPERLINK(1);" in excel
+    req = urllib.request.Request(f"{http}/download/check", headers={"Host": "evil.example:1"})
     with pytest.raises(urllib.error.HTTPError) as e:
         urllib.request.urlopen(req)
     assert e.value.code == 403

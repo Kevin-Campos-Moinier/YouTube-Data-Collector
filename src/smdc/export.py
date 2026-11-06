@@ -47,7 +47,7 @@ CONTAINER_FIELDS = {
     "title": "Video title.", "author_id": "Uploader channel ID.", "author_name": "Uploader channel name.",
     "published_at": "Video publication time, UTC.",
     "comment_count": "Platform comment count (replies included) at resolved_at; empty if hidden.",
-    "stats": "Other counters at resolved_at (JSON: viewCount, likeCount...).",
+    "stats": "Other figures at resolved_at (JSON: viewCount, likeCount, durationSeconds...).",
     "resolved_at": "When the metadata was fetched.",
     "comments": "Top-level comments collected (before language filtering).",
     "replies": "Replies collected (before language filtering).",
@@ -146,7 +146,7 @@ def export(store: Store, run_ref: str, out_root: Path, fmt: str = "csv", kept_on
 FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
 
 
-def _defuse(v):
+def defuse(v):
     """Prefixes a quote to text Excel would run as a formula (a comment can be '=HYPERLINK(...)')."""
     return "'" + v if isinstance(v, str) and v.startswith(FORMULA_START) else v
 
@@ -155,7 +155,7 @@ def _csv(path: Path, rows: list[dict], cols: list[str], excel: bool) -> None:
     with open(path, "w", newline="", encoding="utf-8-sig" if excel else "utf-8") as f:
         w = csv.DictWriter(f, cols, delimiter=";" if excel else ",", extrasaction="ignore")
         w.writeheader()
-        w.writerows([{k: _defuse(v) for k, v in r.items()} for r in rows] if excel else rows)
+        w.writerows([{k: defuse(v) for k, v in r.items()} for r in rows] if excel else rows)
 
 
 def _jsonl(path: Path, rows: list[dict], cols: list[str]) -> None:

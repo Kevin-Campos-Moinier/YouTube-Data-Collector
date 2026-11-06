@@ -128,9 +128,11 @@ computer (127.0.0.1).
 1. **New run**: paste video URLs (or `channel:@name`, `playlist:…`): the box says what it understood and which line is
    wrong. Choose *Quick sample* or *All comments* and the languages to keep; the rest is under *More options*. Your
    draft survives a reload, and *New run from these settings* starts from an earlier run.
-2. **Check videos & estimate cost**: shows each video's title and comment count, flags disabled
-   or missing ones, and estimates the quota cost against what is left today. Changing a setting afterwards updates the
-   cost without spending anything.
+2. **Check videos & estimate cost**: shows each video's title, channel, views and comment count, flags disabled
+   or missing ones, and estimates the quota cost against what is left today. The column titles sort the list. *CSV*
+   downloads it with each video's date, length and likes and the line that found it with its rank there, to choose
+   videos before collecting anything. Changing a setting afterwards updates the cost without spending anything. A `search:` line has its own
+   options: order, language, country, dates and length.
 3. **Start collection**: shows overall and per-video progress, the time left, the quota gauge, the filtering report and
    the log. *Pause* and *Resume* work at any time. If the quota runs out, the page says when it comes back; *Continue
    automatically after the reset* takes it from there, as long as the terminal window stays open.

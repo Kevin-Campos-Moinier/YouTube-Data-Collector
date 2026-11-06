@@ -36,6 +36,13 @@ All notable changes to this project are listed here. The format follows
   (1 unit), saved in the configuration folder, readable by you only, and never shown again. No file to edit, no second
   launch. *Change the API key* is on the Quota page.
 - The videos box says what it understood as you type (`2 videos, 1 channel`), and which line is wrong.
+- Search options for `search:` lines (`search_order`, `search_language`, `search_region`, `search_after`,
+  `search_before`, `search_duration`), in the TOML and in the dashboard. Relevance stays the default.
+- *Check videos* shows each video's views, and sorts by any column. Its list downloads as CSV (or CSV for Excel), with
+  each video's date, length and likes, the line that found it and its rank there, the search options and the date of
+  the check.
+  Nothing is spent: these figures come with the call the check already made.
+- A video's length is kept with its figures (`durationSeconds` in `stats`, in the database and in exports).
 
 - New run: the videos come first, then three presets (*Quick sample*, *All comments*, *Custom*) with a sentence saying
   what they do; languages by name; the other options folded away. The draft survives a reload, the run name comes from

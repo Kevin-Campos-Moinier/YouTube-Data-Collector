@@ -23,7 +23,7 @@ class Container:
         comment_count: Platform-reported comment count (replies included);
             None when the platform hides it, which on YouTube usually means
             comments are disabled.
-        stats: Other platform counters (views, likes...).
+        stats: Other platform figures (views, likes, duration in seconds...).
     """
 
     platform: str

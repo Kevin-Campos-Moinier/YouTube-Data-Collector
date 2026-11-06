@@ -78,7 +78,33 @@ try {
   check("targets: the wrong line is named", await until(`document.querySelector("#f-targets-hint").innerText.includes("Line 3")`, 3000), await text("#f-targets-hint"));
   await val("#f-targets", "search:cats");
   check("targets: a search needs its box ticked", await until(`document.querySelector("#f-targets-hint").innerText.includes("allow search")`, 3000), await text("#f-targets-hint"));
+  check("search: its options show with a search line", await until(`!document.querySelector("#f-search-opts").classList.contains("hidden")`, 3000));
+  await val("#f-targets", "aaaaaaaaaaa");
+  check("search: its options go away without one", await until(`document.querySelector("#f-search-opts").classList.contains("hidden")`, 3000));
   await val("#f-targets", "");
+
+  // ---------------------------------------------------------------- a search: where each video comes from, its figures, the list as CSV
+  await go(QUICK, "#new");
+  await val("#f-name", "found"); await val("#f-targets", "bbbbbbbbbbb\nsearch:cats");
+  await until(`!document.querySelector("#f-search-row").classList.contains("hidden")`, 3000);
+  await click("#f-search"); await val("#f-s-lang", "fr"); await val("#f-s-region", "FR");
+  await click("#b-plan"); await until(`!!document.querySelector("#b-start")`, 6000); await sleep(200);
+  const heads = await ev(`[...document.querySelectorAll("#plan-videos th")].map((t) => t.innerText.trim()).join(",")`);
+  check("check: the columns of before, and views", heads === "video,title,channel,views,comments,units", heads);
+  check("search: language and country are lists of names", (await ev(`document.querySelector("#f-s-region").selectedOptions[0].text`)) === "France (FR)" && (await ev(`document.querySelector("#f-s-lang option[value=''").text`)).startsWith("Any"));
+  const csv = await ev(`fetch("/download/check").then((r) => r.text())`);
+  check("check: the CSV has the rest, with the search line, the rank and the options", csv.startsWith("target,rank,video_id") && /\nsearch:cats,\d/.test(csv) && csv.includes("language=fr; region=FR"), csv.slice(0, 300));
+  await click('#plan-videos [data-sort="views"]'); await sleep(100);
+  check("check: the list sorts by views", (await ev(`document.querySelector("#plan-videos th[aria-sort]")?.innerText || ""`)).startsWith("views"));
+  // a draft saved by an older version, without the search options: they take their defaults
+  await ev(`localStorage.setItem("smdc.draft", JSON.stringify({name: "old", targets: ["search:x"], collect: {max_items: 100, allow_search: true}, process: {languages: ["en"]}, privacy: {}}))`);
+  await go(QUICK, "#new");
+  const opts = await ev(`["#f-s-order", "#f-s-lang", "#f-s-region", "#f-s-length", "#f-s-after"].map((s) => document.querySelector(s).value).join("|")`);
+  check("an older draft: no \"undefined\" in the search options", opts === "relevance|||any|", opts);
+  await ev(`localStorage.setItem("smdc.draft", JSON.stringify({name: "odd", targets: ["search:x"], collect: {allow_search: true, search_language: "tlh"}, process: {languages: ["en"]}, privacy: {}}))`);
+  await go(QUICK, "#new");
+  check("a language the list lacks, from a run file: kept and shown", (await ev(`document.querySelector("#f-s-lang").value`)) === "tlh");
+  await ev(`localStorage.removeItem("smdc.draft")`);
 
   // ---------------------------------------------------------------- a run so short that it ends under a click on Pause
   await go(QUICK, "#new");

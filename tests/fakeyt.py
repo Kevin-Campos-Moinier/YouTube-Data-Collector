@@ -67,9 +67,9 @@ class FakeYouTube:
                 # "hidden" comments are counted by YouTube but never returned (held, spam...)
                 stats["commentCount"] = str(sum(1 + len(t["replies"]) + t.get("phantom", 0)
                                                 for t in v["threads"]) + v.get("hidden", 0))
-            items.append({"id": vid, "snippet": {"title": f"Video {vid}", "channelId": "UCchan",
+            items.append({"id": vid, "snippet": {"title": v.get("title", f"Video {vid}"), "channelId": "UCchan",
                                                  "channelTitle": "Chan", "publishedAt": ts(0)},
-                          "statistics": stats})
+                          "statistics": stats, "contentDetails": {"duration": "PT12M5S"}})
         return {"items": items}
 
     def _commentThreads(self, p):

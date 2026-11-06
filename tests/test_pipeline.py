@@ -201,6 +201,10 @@ def test_target_expansion(tmp_path):
     ids = env.source.expand(["search:tlou trailer"], config.Collect(allow_search=True))
     assert ids == all_ids and env.budget.used_today() == before  # searches have their own daily limit
     assert env.budget.history()["searches"] == 1 and "search" not in env.budget.history()["endpoints"]
+    opts = config.Collect(allow_search=True, search_language="fr", search_region="FR", search_duration="long")
+    env.source.expand(["search:tlou trailer"], opts)
+    sent = [p for e, p in env.fake.calls if e == "search"][-1]
+    assert (sent["relevanceLanguage"], sent["regionCode"], sent["videoDuration"], sent["order"]) == ("fr", "FR", "long", "relevance")
     with pytest.raises(ValueError, match="unrecognized"):
         env.source.expand(["https://vimeo.com/123"], col)
     with pytest.raises(ValueError, match="not found"):
@@ -273,3 +277,19 @@ def test_quota_history(tmp_path):
     assert len(h["days"]) == 14 and h["days"][-1]["units"] == env.budget.used_today() > 0
     assert h["runs"]["t"] + h["runs"].get("(checks before a run)", 0) == env.budget.used_today()
     assert set(h["endpoints"]) == {"videos", "commentThreads"}
+
+
+def test_expansion_says_where_each_video_comes_from(tmp_path):
+    env = Env(tmp_path)
+    a, b, *_ = sorted(env.fake.videos)
+    found = env.source.expand_traced([b, "channel:@chan  # its uploads", "search:x"], config.Collect(allow_search=True))
+    assert found[b] == (b, 1)  # given first, so it keeps its own line even though the channel finds it too
+    assert found[a] == ("channel:@chan  # its uploads", 1)
+    assert list(found) == env.source.expand([b, "channel:@chan  # its uploads", "search:x"], config.Collect(allow_search=True))
+    assert {line for line, _ in found.values()} == {b, "channel:@chan  # its uploads"}  # the search found nothing new
+
+
+def test_resolve_keeps_the_duration_with_the_figures(tmp_path):
+    env = Env(tmp_path)
+    c = env.source.resolve([sorted(env.fake.videos)[0]])[0]
+    assert c.stats == {"viewCount": 1000, "durationSeconds": 725}

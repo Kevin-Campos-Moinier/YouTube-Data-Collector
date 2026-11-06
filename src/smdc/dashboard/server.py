@@ -5,7 +5,9 @@ Collections run in a background thread of this process (one at a time, since
 they share the daily quota); the page polls for progress.
 """
 
+import csv
 import dataclasses
+import io
 import datetime as dt
 import json
 import os
@@ -22,7 +24,8 @@ from pathlib import Path
 
 from .. import config, net, pipeline, retention, sources
 from ..budget import Budget
-from ..export import export, preview
+from ..export import defuse, export, preview
+from ..store import now as store_now
 from ..sources import check_key, get_source
 
 PAGE = Path(__file__).with_name("index.html")
@@ -34,6 +37,9 @@ UI_TYPES = {".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2"
 LOCAL_HOSTS = ("127.0.0.1", "localhost")
 EXPLORE_PAGE = 50
 EXPLORE_ORDER = {"oldest": "created_at", "newest": "created_at DESC", "liked": "like_count DESC, created_at"}
+# The CSV of a check: one row per video, from the target line that found it first.
+CHECK_COLUMNS = ("target", "rank", "video_id", "url", "title", "channel_id", "channel", "published_at",
+                 "duration_seconds", "views", "likes", "comments", "availability", "search_options", "checked_at")
 RESOLVED_FOR = 3600                    # seconds a check of the videos stays good for
 MAX_BODY = 1_000_000                   # every request this page sends fits well within this
 
@@ -85,8 +91,9 @@ class Api:
     def __init__(self, ctx):
         self.ctx, self.store = ctx, ctx.store
         self.runner = Runner(ctx)
-        # targets -> (when, resolved containers): checking videos costs quota, changing a setting should not
-        self.resolved: dict[str, tuple[float, list]] = {}
+        # targets -> (when, resolved containers, origins): checking videos costs quota, changing a setting should not
+        self.resolved: dict[str, tuple[float, list, dict]] = {}
+        self.last_check: dict | None = None  # the latest check, for its CSV
 
     def _budget(self) -> Budget:
         runs = self.store.runs()
@@ -213,12 +220,14 @@ class Api:
 
     @staticmethod
     def _targets_key(cfg: config.Config) -> str:
-        return json.dumps([cfg.source, cfg.targets, cfg.collect.max_videos_per_target, cfg.collect.allow_search])
+        c = cfg.collect
+        return json.dumps([cfg.source, cfg.targets, c.max_videos_per_target, c.allow_search, search_options(c)])
 
-    def _resolved(self, cfg: config.Config) -> list | None:
-        """The videos of these targets if they were checked recently, so that no quota is spent again."""
-        when, containers = self.resolved.get(self._targets_key(cfg), (0.0, None))
-        return containers if time.time() - when < RESOLVED_FOR else None
+    def _resolved(self, cfg: config.Config) -> tuple[list, dict] | None:
+        """The videos of these targets and where each came from, if they were checked recently, so that
+        no quota is spent again."""
+        when, containers, origins = self.resolved.get(self._targets_key(cfg), (0.0, None, {}))
+        return (containers, origins) if time.time() - when < RESOLVED_FOR else None
 
     def post_plan(self, body):
         cfg = self._cfg(body)
@@ -226,20 +235,55 @@ class Api:
         sources.validate_targets(cfg)  # before the key, so that a mistake in a line is what gets reported
         budget = Budget(self.store, cfg.source, cfg.daily_units)
         source = get_source(cfg.source, budget)
-        containers = self._resolved(cfg)
-        checked = containers is None
+        cached = self._resolved(cfg)
+        checked = cached is None
         if checked:
-            containers = source.resolve(source.expand(cfg.targets, cfg.collect))
-            self.resolved[self._targets_key(cfg)] = (time.time(), containers)
-        return {"containers": [dataclasses.asdict(c) for c in containers], "checked": checked,
+            origins = source.expand_traced(cfg.targets, cfg.collect)
+            cached = source.resolve(list(origins)), origins
+            self.resolved[self._targets_key(cfg)] = (time.time(), *cached)
+        containers, origins = cached
+        kinds = {r["line"]: r["kind"] for r in sources.classify_targets(cfg.source, cfg.targets)}
+        line_of = {t.strip(): n for n, t in enumerate(cfg.targets, 1)}
+        rows = []
+        for c in containers:
+            target, rank = origins.get(c.container_id, ("", None))
+            rows.append({**dataclasses.asdict(c), "target": target, "rank": rank, "kind": kinds.get(line_of.get(target))})
+        if checked or not self.last_check or self.last_check["key"] != self._targets_key(cfg):
+            self.last_check = {"key": self._targets_key(cfg), "at": store_now(), "rows": rows,
+                               "search": search_options(cfg.collect)}
+        return {"containers": rows, "checked": checked,
                 "estimate": dataclasses.asdict(source.estimate(containers, cfg.collect)), "budget": budget.status()}
+
+    def check_csv(self, excel: bool) -> bytes:
+        """The latest check as a CSV: one row per video, with where it came from and its figures.
+
+        Args:
+            excel: ';' separators, a BOM and text that Excel would run as a formula defused, as in exports.
+
+        Raises:
+            KeyError: No video was checked since the dashboard started.
+        """
+        if not self.last_check:
+            raise KeyError("no check yet")
+        chk, out = self.last_check, io.StringIO()
+        w = csv.writer(out, delimiter=";" if excel else ",", lineterminator="\n")
+        w.writerow(CHECK_COLUMNS)
+        for r in chk["rows"]:
+            st = r["stats"] or {}
+            row = [r["target"], r["rank"], r["container_id"], f"https://www.youtube.com/watch?v={r['container_id']}",
+                   r["title"], r["author_id"], r["author_name"], r["published_at"], st.get("durationSeconds"),
+                   st.get("viewCount"), st.get("likeCount"), r["comment_count"], r["availability"],
+                   chk["search"] if r["kind"] == "search" else "", chk["at"]]
+            w.writerow([defuse(v) for v in row] if excel else row)
+        return out.getvalue().encode("utf-8-sig" if excel else "utf-8")
 
     def post_run(self, body):
         cfg = self._cfg(body)
         self.store.check_new_name(cfg.name)
-        containers = self._resolved(cfg)
-        if containers is None:
+        cached = self._resolved(cfg)
+        if cached is None:
             raise ValueError("check the videos first: they changed since the last estimate, or it is over an hour old")
+        containers = cached[0]
         run_id = pipeline.create_run(self.store, cfg, containers)
         runs_dir = self.ctx.data / "runs"
         runs_dir.mkdir(parents=True, exist_ok=True)
@@ -306,6 +350,13 @@ class Api:
         out = export(self.store, body["name"], self.ctx.data / "exports", body.get("format", "csv"),
                      bool(body.get("kept")), bool(body.get("excel")), body.get("seq"))
         return {"path": str(out)}
+
+
+def search_options(c: config.Collect) -> str:
+    """The search options of a run in one line, as the CSV of a check records them."""
+    opts = [("order", c.search_order), ("language", c.search_language), ("region", c.search_region),
+            ("after", c.search_after), ("before", c.search_before), ("duration", c.search_duration)]
+    return "; ".join(f"{k}={v}" for k, v in opts if v)
 
 
 def make_handler(api: Api):
@@ -377,6 +428,17 @@ def make_handler(api: Api):
                 if f.is_relative_to(UI.resolve()) and f.is_file() and f.suffix in UI_TYPES:
                     return self._send(200, f.read_bytes(), UI_TYPES[f.suffix])
                 return self._send(404, b"not found", "text/plain")
+            if u.path == "/download/check":
+                excel = urllib.parse.parse_qs(u.query).get("excel") == ["1"]
+                try:
+                    body = api.check_csv(excel)
+                except KeyError:
+                    return self._send(404, b"no check yet", "text/plain")
+                self._headers(200, "text/csv; charset=utf-8", len(body))
+                name = f"videos-checked-{api.last_check['at'][:10]}{'-excel' if excel else ''}.csv"
+                self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+                self.end_headers()
+                return self.wfile.write(body)
             if u.path == "/download/export":
                 return self._download({k: x[0] for k, x in urllib.parse.parse_qs(u.query).items()})
             fn = getattr(api, "get_" + u.path.removeprefix("/api/"), None)

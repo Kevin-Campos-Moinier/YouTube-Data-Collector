@@ -135,6 +135,28 @@ def explain_http_error(e: net.HttpError) -> str:
     return f"YouTube refused the call (HTTP {e.status} {e.reason}).".replace(" )", ")")
 
 
+def search_params(query: str, c: Collect) -> dict:
+    """The search.list parameters of one search: line, with the run's search options.
+
+    Unset options are left out, so that YouTube's defaults apply (relevance, no language,
+    region or date, any duration).
+    """
+    p = {"part": "id", "q": query, "type": "video", "maxResults": 50, "order": c.search_order,
+         "relevanceLanguage": c.search_language, "regionCode": c.search_region,
+         "publishedAfter": c.search_after, "publishedBefore": c.search_before,
+         "videoDuration": c.search_duration if c.search_duration != "any" else None}
+    return {k: v for k, v in p.items() if v}
+
+
+def iso_seconds(duration: str | None) -> int | None:
+    """Seconds in an ISO 8601 duration as videos.list gives it ("PT1H2M3S", "P1DT2H"); None if absent."""
+    m = re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?", duration or "")
+    if not m or duration in ("P", "PT"):
+        return None
+    d, h, mi, se = (int(x or 0) for x in m.groups())
+    return ((d * 24 + h) * 60 + mi) * 60 + se
+
+
 class YouTubeSource:
     """Collects YouTube comments through the official Data API v3.
 
@@ -204,14 +226,23 @@ class YouTubeSource:
         Lines may carry a trailing `# comment`. Duplicates are dropped, first
         occurrence wins.
         """
-        out: dict[str, None] = {}
+        return list(self.expand_traced(targets, params))
+
+    def expand_traced(self, targets: list[str], params: Collect) -> dict[str, tuple[str, int]]:
+        """Like `expand`, saying where each video comes from.
+
+        Returns:
+            Video ID -> (the target line, its rank in that line's results from 1), in order;
+            a video found by two lines keeps the first.
+        """
+        out: dict[str, tuple[str, int]] = {}
         limit = params.max_videos_per_target
         for raw in targets:
             kind, arg = classify_target(raw)
             if kind is None:
                 continue
             if kind == "video":
-                out[arg] = None
+                out.setdefault(arg, (raw.strip(), 1))
                 continue
             if kind == "playlist":
                 ids = self._playlist(arg, limit)
@@ -221,11 +252,12 @@ class YouTubeSource:
                 if not params.allow_search:
                     raise ValueError(f"search: targets are limited to {SEARCHES_PER_DAY} calls a day, 50 results "
                                      "each; set allow_search = true to use them")
-                ids = self._search(arg, limit)
+                ids = self._search(arg, limit, params)
             else:
                 raise ValueError(f"unrecognized target {raw.strip()!r}")
-            out.update(dict.fromkeys(ids))
-        return list(out)
+            for rank, vid in enumerate(ids, 1):
+                out.setdefault(vid, (raw.strip(), rank))
+        return out
 
     def _uploads(self, ref: str) -> str:
         """Returns the uploads playlist of a channel given '@handle' or 'UC...'."""
@@ -240,26 +272,26 @@ class YouTubeSource:
         return [it["contentDetails"]["videoId"]
                 for it in self._paginate("playlistItems", params, limit)]
 
-    def _search(self, query: str, limit: int) -> list[str]:
-        params = {"part": "id", "q": query, "type": "video", "maxResults": 50}
-        return [it["id"]["videoId"] for it in self._paginate("search", params, limit)]
+    def _search(self, query: str, limit: int, c: Collect) -> list[str]:
+        return [it["id"]["videoId"] for it in self._paginate("search", search_params(query, c), limit)]
 
     # -- metadata and estimate -------------------------------------------------------
 
     def resolve(self, ids: list[str]) -> list[Container]:
         found: dict[str, Container] = {}
         for i in range(0, len(ids), 50):
-            body = self._call("videos", {"part": "snippet,statistics", "id": ",".join(ids[i:i + 50]),
-                                         "maxResults": 50})
+            body = self._call("videos", {"part": "snippet,statistics,contentDetails",
+                                         "id": ",".join(ids[i:i + 50]), "maxResults": 50})
             for v in body.get("items", []):
                 sn, st = v.get("snippet", {}), v.get("statistics", {})
-                cc = st.get("commentCount")
+                cc, secs = st.get("commentCount"), iso_seconds(v.get("contentDetails", {}).get("duration"))
                 found[v["id"]] = Container(
                     platform=self.name, container_id=v["id"], title=sn.get("title"),
                     author_id=sn.get("channelId"), author_name=sn.get("channelTitle"),
                     published_at=sn.get("publishedAt"),
                     comment_count=int(cc) if cc is not None else None,
-                    stats={k: int(x) for k, x in st.items() if k != "commentCount"})
+                    stats={**{k: int(x) for k, x in st.items() if k != "commentCount"},
+                           **({"durationSeconds": secs} if secs is not None else {})})
         return [found.get(i) or Container(self.name, i, availability="not_found") for i in ids]
 
     def estimate(self, containers: list[Container], params: Collect) -> Estimate:

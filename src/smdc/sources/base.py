@@ -43,6 +43,9 @@ class Source(Protocol):
             ValueError: On a target the source cannot interpret.
         """
 
+    def expand_traced(self, targets: list[str], params: Collect) -> dict[str, tuple[str, int]]:
+        """Like `expand`, with each ID's target line and rank in that line's results (from 1)."""
+
     def resolve(self, ids: list[str]) -> list[Container]:
         """Fetches container metadata, in input order; unknown IDs come back
         with availability "not_found"."""
