@@ -129,8 +129,10 @@ as failed, and `resume` retries it.
 **Version 1** read the key from `config/api_key.txt` inside the repository, which a `git add .`
 could publish, and had to be run from the repository root.
 
-**Version 2** reads the key from the environment or from a `.env` file that git ignores; the key
-is never logged or stored, and error messages never contain the request URL. It installs as a
+**Version 2** reads the key from the environment or from a `.env` file in the user's configuration folder, outside
+the code folder, so that it never travels with the code, even when the folder is synced or shared. The dashboard asks
+for the key on first launch, tests it and saves it there, readable by its owner only. The key is never logged or stored
+in the database, and error messages never contain the request URL. It installs as a
 package with a `smdc` command, and double-click launchers set everything up on
 Windows, macOS and Linux.
 

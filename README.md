@@ -9,7 +9,8 @@ new *sources* without touching the rest.
 
 Version 2 is a complete rewrite of the YouTube Data Collector (version 1). What changed and
 why is in [docs/changes-from-v1.md](docs/changes-from-v1.md) and [CHANGELOG.md](CHANGELOG.md);
-see also [History](#history).
+see also [History](#history). For now, version 2 lives on this repository's `v2` branch, and the `main` branch keeps
+version 1 as it was published ([`v1.0.0`](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0)).
 
 - **Nothing is lost:** every page is saved as it arrives. A run that hits the daily quota pauses,
   and `resume` continues the next day (or `--wait` does it automatically).
@@ -26,11 +27,14 @@ see also [History](#history).
 
 ## Install and launch
 
-You need three things: Python 3.11 or newer, this folder, and a YouTube API key. After that,
-starting the dashboard is a double-click. The first launch installs everything by itself.
+You need Python 3.11 or newer and this folder. After that, starting the dashboard is a double-click: the first launch
+installs everything else by itself, then the dashboard asks for a YouTube API key and shows how to get one. Python
+itself has to be installed first: the launchers only look for it, and say where to get it if it is missing.
 
-**Get this folder.** Download the `.zip` of the latest version from the
-[Releases page](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/releases) and unzip it anywhere, or `git clone https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector.git`.
+**Get this folder.** On the [Releases page](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/releases),
+download the *Source code (zip)* of the latest version 2 release (2.x, marked *Pre-release*) and unzip it anywhere. With
+git: `git clone --branch v2 https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector.git` (without
+`--branch v2`, you get version 1).
 
 ### 1. Install Python (once per computer)
 
@@ -45,19 +49,7 @@ The `python3` that comes with Apple's developer tools is too old (3.9). With Hom
 `python3 --version`. On Debian/Ubuntu, also install the environment module:
 `sudo apt install python3-venv`.
 
-### 2. Get a YouTube API key (once per person)
-
-1. Open <https://console.cloud.google.com/> (a dedicated Google account is a good idea) and create
-   a project.
-2. *APIs & Services* → *Enable APIs and services* → search **YouTube Data API v3** → *Enable*.
-3. *Credentials* → *Create credentials* → *API key*. If asked what data you will access, choose
-   **Public data**.
-4. On the key, click *Edit* → *API restrictions* → *Restrict key* → tick only **YouTube Data API v3**
-   → *Save*. Leave *Application restrictions* on *None*.
-
-Keep the key to yourself: each person uses their own.
-
-### 3. Launch the dashboard
+### 2. Launch the dashboard
 
 | System | What to do |
 |---|---|
@@ -66,8 +58,8 @@ Keep the key to yourself: each person uses their own.
 | Linux | run **`./dashboard.sh`** in a terminal from this folder |
 
 The first launch creates a Python environment and installs the dependencies (a few minutes), then opens the dashboard
-in your browser at <http://127.0.0.1:8777>. Without a key, its first page asks for one: paste it there and it is tested
-(1 unit) and saved. Keep the terminal window open while you use it; closing it (or Ctrl-C) stops the dashboard and
+in your browser at <http://127.0.0.1:8777>. Without a key, its first page says how to get one, for free, from Google
+(about five minutes, once per person: each person uses their own). Paste it there: it is tested (1 unit) and saved. Keep the terminal window open while you use it; closing it (or Ctrl-C) stops the dashboard and
 pauses any running collection, which *Resume* continues later.
 
 The key is saved in a `.env` in your user configuration folder, outside this folder (see the table below), so it never
@@ -114,7 +106,8 @@ py -m venv $HOME\.venvs\smdc
 & $HOME\.venvs\smdc\Scripts\smdc.exe dashboard
 ```
 
-`[all]` adds language detection and Parquet export. Activate the environment
+`[all]` adds language detection and Parquet export. Without the dashboard, `smdc init` says how to get an API key,
+then tests and saves it. Activate the environment
 (`source ~/.venvs/smdc/bin/activate`, or `$HOME\.venvs\smdc\Scripts\Activate.ps1`)
 to type plain `smdc …` afterwards.
 
@@ -198,7 +191,7 @@ A standard key has 10,000 units per day, reset at midnight Pacific time (09:00 i
 
 | Call | Units | Used for |
 |---|---|---|
-| `videos.list` | 1 per 50 videos | titles, counts, availability check |
+| `videos.list` | 1 per 50 videos | titles, counts, views, length, availability check |
 | `commentThreads.list` | 1 per 100 comments | comments, plus up to 5 replies each for free |
 | `comments.list` | 1 per 100 replies | only for threads with more than 5 replies, up to your cap |
 | `channels.list`, `playlistItems.list` | 1, then 1 per 50 videos | `channel:` and `playlist:` targets |
@@ -300,7 +293,10 @@ second `Budget` profile.
 ```bash
 pip install -e ".[all,dev]"
 pytest                      # offline: an in-memory fake of the YouTube API, no key needed
+SMDC_E2E=1 pytest tests/test_e2e.py   # the dashboard clicked through in Chrome (needs Chrome and Node 22)
 ```
+
+How releases are numbered and made: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
 
@@ -315,8 +311,8 @@ pytest                      # offline: an in-memory fake of the YouTube API, no 
 - **Version 1** (2026), the YouTube Data Collector, was written by Kévin Campos-Moinier. It
   stays available unchanged as the
   [`v1.0.0` tag](https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0).
-- **Version 2** is a complete rewrite by Loïc Miller, released as `socialcollect` 2.0.0 and
-  then renamed Social Media Data Collector (`smdc`). It keeps version 1's
+- **Version 2** is a complete rewrite by Loïc Miller, the Social Media Data Collector (`smdc`), first released as
+  2.0.0 (its working name was `socialcollect`). It keeps version 1's
   design choices (official API, quota handling, exclusion report) and its short-English word
   list, and adds everything listed in [CHANGELOG.md](CHANGELOG.md).
 

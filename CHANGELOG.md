@@ -6,22 +6,22 @@ All notable changes to this project are listed here. The format follows
 
 ## [Unreleased]
 
-### Changed
+## [2.0.0] - 2026-11-06
 
-- New look for the dashboard: fonts and icons served locally (nothing loaded from outside), light, dark and system
-  themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
-- The cost estimate now says what a collection usually costs and what it costs at worst ("about 14, 98 at worst")
-  instead of a range too wide to plan with. The usual cost comes from reply rates measured on 66 real videos.
-- The videos box grows in height only, up to a limit, shows its example in full and keeps the accepted forms in view
-  once something is typed. The examples no longer name a game or a brand.
-- *Custom* stays selected when clicked, *Quick sample* and *All comments* fold the details again, and the sentence under
-  them says what stays set in the folded details.
-- Explore shows 50 comments a page in a list of its own, with its position and pages above it, so that Export and Log stay
-  close however many comments a run holds; links on a run's page lead to them.
-- *Progress* and *Per video* stay short on a run of many videos: a list of their own on a wide window, the first 20 and
-  a button on a phone. Their column titles sort them, and a third click brings back the run's own order.
-- On a phone, Browse shows each comment's text first and in full. A chart of a single day now shows that day.
-- What the YouTube Researcher Program says about comments: nothing rules them out, nothing confirms them.
+The first release of version 2, named Social Media Data Collector (`smdc`). Compared with version 1, it is a
+complete rewrite: see the drafts' entry below and [docs/changes-from-v1.md](docs/changes-from-v1.md). The
+changes listed here are those since the drafts shared as `socialcollect` (never released).
+
+### Breaking changes (for users of the socialcollect drafts)
+
+- Renamed Social Media Data Collector. The command and the package are now `smdc` (was
+  `socialcollect`), the environment variables `SMDC_DATA`, `SMDC_VENV` and `SMDC_SECRET`
+  (were `SOCIALCOLLECT_*`), the default folders `~/smdc-data` and `~/.venvs/smdc`, and the
+  database `smdc.sqlite`. To keep data collected with 2.0.0: rename `SOCIALCOLLECT_SECRET` to
+  `SMDC_SECRET` in `.env` if you set it (otherwise author keys change), move
+  `~/socialcollect-data` to `~/smdc-data` and rename `socialcollect.sqlite` in it to
+  `smdc.sqlite`. The launcher installs into `~/.venvs/smdc`; `~/.venvs/socialcollect` can be
+  deleted.
 
 ### Added
 
@@ -55,9 +55,24 @@ All notable changes to this project are listed here. The format follows
 - `smdc init` saves the API key after testing it. `smdc doctor` checks the setup and says what to do. Each command
   says what comes next, and `--help` gives examples.
 - *units*, *snapshot* and *kept* are explained where they appear, with the mouse or the keyboard.
+- MIT license.
 
 ### Changed
 
+- New look for the dashboard: fonts and icons served locally (nothing loaded from outside), light, dark and system
+  themes with a button, a summary of figures at the top of every page, and addresses for each view (`#runs`, `#quota`).
+- The cost estimate now says what a collection usually costs and what it costs at worst ("about 14, 98 at worst")
+  instead of a range too wide to plan with. The usual cost comes from reply rates measured on 66 real videos.
+- The videos box grows in height only, up to a limit, shows its example in full and keeps the accepted forms in view
+  once something is typed. The examples no longer name a game or a brand.
+- *Custom* stays selected when clicked, *Quick sample* and *All comments* fold the details again, and the sentence under
+  them says what stays set in the folded details.
+- Explore shows 50 comments a page in a list of its own, with its position and pages above it, so that Export and Log stay
+  close however many comments a run holds; links on a run's page lead to them.
+- *Progress* and *Per video* stay short on a run of many videos: a list of their own on a wide window, the first 20 and
+  a button on a phone. Their column titles sort them, and a third click brings back the run's own order.
+- On a phone, Browse shows each comment's text first and in full. A chart of a single day now shows that day.
+- What the YouTube Researcher Program says about comments: nothing rules them out, nothing confirms them.
 - The browser's Back and Forward buttons work, and every view has an address. Every field has a name for screen readers,
   errors and status changes are announced, and the quota gauge and the runs in the list can be reached by keyboard.
 - Refreshing a snapshot asks for confirmation in the page.
@@ -93,27 +108,12 @@ All notable changes to this project are listed here. The format follows
   which is often synced or shared. The launcher creates it there; a `.env` in the working folder
   is still read, so existing setups keep working.
 
-### Breaking changes
+## socialcollect drafts - 2026-10-20
 
-- Renamed Social Media Data Collector. The command and the package are now `smdc` (was
-  `socialcollect`), the environment variables `SMDC_DATA`, `SMDC_VENV` and `SMDC_SECRET`
-  (were `SOCIALCOLLECT_*`), the default folders `~/smdc-data` and `~/.venvs/smdc`, and the
-  database `smdc.sqlite`. To keep data collected with 2.0.0: rename `SOCIALCOLLECT_SECRET` to
-  `SMDC_SECRET` in `.env` if you set it (otherwise author keys change), move
-  `~/socialcollect-data` to `~/smdc-data` and rename `socialcollect.sqlite` in it to
-  `smdc.sqlite`. The launcher installs into `~/.venvs/smdc`; `~/.venvs/socialcollect` can be
-  deleted.
-
-### Added
-
-- MIT license.
-
-## [2.0.0] - 2026-10-20
-
-A complete rewrite, named `socialcollect`. Topic-by-topic explanations of what changed since
+A complete rewrite, named `socialcollect`, shared on the repository without a release. Topic-by-topic explanations of what changed since
 version 1, and why, are in [docs/changes-from-v1.md](docs/changes-from-v1.md).
 
-### Breaking changes
+### Breaking changes (compared with version 1)
 
 - Installed as a Python package with a `socialcollect` command (or double-click launchers),
   instead of running `source/main.py`.
@@ -177,6 +177,6 @@ The YouTube Data Collector by Kévin Campos-Moinier:
 comments and replies of a list of videos through the YouTube Data API v3, three orders, English
 filtering and an exclusion report.
 
-[Unreleased]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/compare/v2.0.0...v2
 [2.0.0]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Kevin-Campos-Moinier/YouTube-Data-Collector/tree/v1.0.0

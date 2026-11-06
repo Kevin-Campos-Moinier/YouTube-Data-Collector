@@ -35,3 +35,27 @@ The core uses only the standard library; keep it that way (optional features go 
 - A release bumps `version` in `pyproject.toml` and `__version__` in
   `src/smdc/__init__.py`, moves *Unreleased* to the new version in `CHANGELOG.md`,
   updates `version` and `date-released` in `CITATION.cff`, and is tagged `vX.Y.Z`.
+
+## Releases
+
+Versions follow [Semantic Versioning](https://semver.org/), `MAJOR.MINOR.PATCH`, chosen from what *Unreleased* holds:
+
+- **PATCH** (2.0.0 → 2.0.1): fixes only. Nothing new to learn, nothing to change in a run file.
+- **MINOR** (2.0.1 → 2.1.0): something new that older run files, commands and exports survive unchanged (a new
+  option with a default, a new column added at the end, a new page). The patch number goes back to 0.
+- **MAJOR** (2.x → 3.0.0): something that worked stops working as it was: a run file key, a command or an option
+  renamed or removed, an export column renamed, removed or changing meaning, a different default that changes what a
+  run collects. Say in *Breaking changes* what users have to do.
+
+Making one, from an up-to-date branch with the tests passing (here and in CI):
+
+1. Bump the version in the four places listed under Rules, and date the *Unreleased* section in `CHANGELOG.md`
+   (`## [2.1.0] - YYYY-MM-DD`, a new empty *Unreleased* above it, and the comparison links at the bottom).
+2. Commit (`Release 2.1.0`), then tag that commit: `git tag -a v2.1.0 -m "smdc 2.1.0"`.
+3. Push the branch, then the tag: `git push`, then `git push origin v2.1.0`.
+4. On GitHub, *Releases* → *Draft a new release*, choose the tag, paste the notes (the CHANGELOG section, in plain
+   words), and publish. GitHub attaches the source code as `.zip` and `.tar.gz`.
+
+For now, version 2 lives on the `v2` branch, its releases are marked *Pre-release*, and `main` keeps version 1
+unchanged. When version 2 becomes the main version, `main` moves to `v2` (`git push origin v2:main`, no force needed)
+and releases become regular ones.
