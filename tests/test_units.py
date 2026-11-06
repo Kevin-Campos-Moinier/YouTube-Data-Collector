@@ -140,9 +140,13 @@ def test_user_env_path(monkeypatch, tmp_path):
     monkeypatch.setenv("SMDC_ENV", str(tmp_path / "k.env"))
     assert config.user_env_path() == tmp_path / "k.env"
     monkeypatch.delenv("SMDC_ENV")
-    monkeypatch.setattr(os, "name", "posix")
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
-    assert config.user_env_path() == tmp_path / "cfg" / "smdc" / ".env"
+    # each system's own branch, on that system: pathlib cannot build another system's paths
+    if os.name == "nt":
+        monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+        assert config.user_env_path() == tmp_path / "roaming" / "smdc" / ".env"
+    else:
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+        assert config.user_env_path() == tmp_path / "cfg" / "smdc" / ".env"
 
 
 def test_load_dotenv_first_file_wins(monkeypatch, tmp_path):

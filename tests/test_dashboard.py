@@ -1,6 +1,7 @@
 """Dashboard API end to end, with the in-memory YouTube."""
 
 import csv
+import http.client as http_client
 import io
 import json
 import threading
@@ -318,9 +319,15 @@ def test_check_key_calls_the_platform_once_and_accepts_a_key_out_of_quota(api):
 
 
 def test_post_bodies_are_capped_and_must_be_json(http):
-    with pytest.raises(urllib.error.HTTPError) as e:
-        post(http, "/api/pause", b"x" * (server.MAX_BODY + 1), Origin=http)
-    assert e.value.code == 413
+    # The size is announced but not sent: the server answers before reading a body that large, and a client
+    # still writing it could meet a closed connection instead of the answer, depending on timing.
+    conn = http_client.HTTPConnection(http.removeprefix("http://"), timeout=10)
+    conn.putrequest("POST", "/api/pause")
+    conn.putheader("Origin", http)
+    conn.putheader("Content-Length", str(server.MAX_BODY + 1))
+    conn.endheaders()
+    assert conn.getresponse().status == 413
+    conn.close()
     with pytest.raises(urllib.error.HTTPError) as e:
         post(http, "/api/pause", b"not json", Origin=http)
     assert e.value.code == 400
