@@ -61,9 +61,6 @@ button.btn.danger.solid { background: var(--critical); border-color: var(--criti
 .x-list th, .v-list th { position: sticky; top: 0; background: var(--surface); }
 .v-list { max-height: 50vh; overflow: auto; }
 .v-all { display: none; margin-top: 8px; }
-.th-sort { all: unset; cursor: pointer; }
-.th-sort:hover { text-decoration: underline; }
-.th-sort:focus-visible { outline: 2px solid var(--tool); outline-offset: 2px; border-radius: 2px; }
 .x-pager-end { display: none; }
 .jump { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 0 0 16px; padding: 6px 18px;
   background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 13px; }
@@ -121,7 +118,6 @@ h1:focus { outline: none; }
   table { display: block; overflow-x: auto; }
   td.txt { min-width: 220px; } th, td { min-width: 64px; }
   .x-list, .v-list { max-height: none; overflow: visible; }
-  .th-sort { display: inline-flex; align-items: center; min-height: 32px; }
   /* Browse: each comment's text first and in full, then what it is. */
   .x-list table, .x-list tbody { display: block; }
   .x-list tr:first-child { display: none; }
@@ -1212,7 +1208,7 @@ function drawVideos(box) {
   }).map(([r]) => r);
   $(box).innerHTML = `<table><tr>${columns.map((c) => {
     const on = sort?.key === c.key;
-    return `<th${c.num ? ' class="num"' : ""}${c.style ? ` style="${c.style}"` : ""}${on ? ` aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="th-sort" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${on ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
+    return `<th${c.num ? ' class="num"' : ""}${c.style ? ` style="${c.style}"` : ""}${on ? ` aria-sort="${sort.dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" class="ui-sort" data-sort="${c.key}" title="Sort by ${esc(c.label)}">${esc(c.label)}${on ? (sort.dir > 0 ? " ↑" : " ↓") : ""}</button></th>`;
   }).join("")}</tr>${shown.map((r) => r.html).join("")}</table>`;
   $(button).textContent = `Show all ${fmt(rows.length)} videos`;
   $(button).classList.toggle("hidden", rows.length <= VIDEOS_FIRST || $(box).classList.contains("all"));
