@@ -138,6 +138,14 @@ th[aria-sort="ascending"] .ui-sort, th[aria-sort="descending"] .ui-sort { color:
 .ui-more { margin-top: 8px; }
 @media (max-width: 640px) { .ui-sort { min-height: 32px; } }
 .ui-scroll { overflow-x: auto; }
+:root { --ui-stick: 0px; --ui-ground: var(--page); }
+.ui-card, .card, dialog { --ui-ground: var(--surface); }
+.ui-info-panel { --ui-ground: var(--surface-2); }
+.tablewrap { overflow-x: auto; }
+.tablewrap:not(.fits) { overflow: auto; max-height: 80vh; --ui-stick: 0px; }
+.tablewrap.fits { overflow: visible; }
+.ui-scroll, dialog { --ui-stick: 0px; }
+.ui-table thead th, .tablewrap thead th { position: sticky; top: var(--ui-stick); z-index: 1; background: var(--ui-ground); box-shadow: 0 1px 0 var(--border); }
 .ui-empty { color: var(--muted); text-align: center; padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .ui-skeleton { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2), var(--track), var(--surface-2));
   background-size: 200% 100%; animation: ui-shimmer 1.4s ease-in-out infinite; }
