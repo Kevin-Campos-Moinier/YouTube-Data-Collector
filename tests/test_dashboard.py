@@ -239,7 +239,7 @@ def test_a_bad_target_is_reported_before_the_missing_key(tmp_path, monkeypatch):
     assert api.post_targets({"lines": ["aaaaaaaaaaa", "oops"]})["lines"][1]["error"]
 
 
-KEY = "AIzaGOODgoodGOODgoodGOODgoodGOOD0000000"
+KEY = "test-key-GOODgoodGOODgoodGOOD0000"
 
 
 @pytest.fixture

@@ -52,7 +52,7 @@ try {
   check("key refused by YouTube: says so", await until(`document.querySelector("#k-err").innerText.includes("not valid")`, 4000), await text("#k-err"));
   check("key refused: nothing written", !existsSync(process.env.ENV_FILE));
   await shot("key-refused");
-  const goodKey = "AIzaGOODgoodGOODgoodGOODgoodGOOD0000000";
+  const goodKey = "test-key-GOODgoodGOODgoodGOOD0000";
   await val("#k-key", goodKey); await click("#b-key");
   check("good key: on to New run", await until(`!!document.querySelector("#view-new").offsetParent`, 4000), await text("#k-err"));
   check("good key: saved", readFileSync(process.env.ENV_FILE, "utf-8").includes("YOUTUBE_API_KEY=" + goodKey));

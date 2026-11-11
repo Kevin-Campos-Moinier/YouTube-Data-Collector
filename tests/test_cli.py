@@ -95,7 +95,7 @@ def test_help_has_examples(capsys):
     assert "examples:" in out and "smdc init" in out and "doctor" in out
 
 
-KEY = "AIzaGOODgoodGOODgoodGOODgoodGOOD0000000"
+KEY = "test-key-GOODgoodGOODgoodGOOD0000"
 
 
 def test_init_tests_then_saves_the_key(tmp_path, monkeypatch, capsys):
